@@ -1,6 +1,6 @@
 import { Component } from '@angular/core';
 import { Router } from '@angular/router';
-import { AuthService } from '../../services/auth.service';
+import { AuthService } from '../../core/services/auth.service';
 
 declare var Flowbite: any;
 
@@ -14,12 +14,7 @@ export class SidebarComponent {
   nombreUsuario: string = '';
   emailUsuario: string = '';
 
-  ngAfterViewInit(): void {
-    // Si Flowbite usa auto init, esto lo asegura
-    if (typeof Flowbite !== 'undefined') {
-      Flowbite.init();
-    }
-  }
+  
 
   constructor(private authService: AuthService, private router: Router) {}
 
