@@ -6,21 +6,19 @@ import { Usuario, UsuarioDTO } from '../models/usuario.model';
 import { environment } from '../enviroment';
 
 @Injectable({
-  providedIn: 'root'
+  providedIn: 'root',
 })
 export class UserService {
-  private apiUrl = environment.apiUrl + 'user/';
-  
+  private apiUrl = environment.apiUrl + 'user';
 
   constructor(private http: HttpClient, private authService: AuthService) {}
-
 
   listarUsuarios(): Observable<Usuario[]> {
     const token = this.authService.obtenerToken();
     const headers = new HttpHeaders({
-      Authorization: `Bearer ${token}`
+      Authorization: `Bearer ${token}`,
     });
-  
+
     return this.http.get<Usuario[]>(`${this.apiUrl}`, { headers });
   }
   buscarUsuarios(search: string): Observable<Usuario[]> {
@@ -33,14 +31,13 @@ export class UserService {
 
   registrarUsuario(usuario: UsuarioDTO): Observable<Usuario> {
     const token = this.authService.obtenerToken();
-  
+
     const headers = new HttpHeaders({
-      Authorization: `Bearer ${token}`
+      Authorization: `Bearer ${token}`,
     });
-  
+
     return this.http.post<Usuario>(`${this.apiUrl}`, usuario, { headers });
   }
-  
 
   actualizarUsuario(id: number, usuario: UsuarioDTO): Observable<Usuario> {
     return this.http.patch<Usuario>(`${this.apiUrl}/${id}`, usuario);

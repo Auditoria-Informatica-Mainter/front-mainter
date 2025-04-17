@@ -9,7 +9,7 @@ import { AuthService } from './auth.service';
   providedIn: 'root'
 })
 export class RoleService {
-  private apiUrl = environment.apiUrl;  // Asegúrate que coincide con tu backend: /mrp/roles
+  private apiUrl = environment.apiUrl;  // URL base del backend
 
   constructor(private http: HttpClient, private authService: AuthService) {}
 
@@ -17,9 +17,21 @@ export class RoleService {
   getRoles(): Observable<Rol[]> {
     const token = this.authService.obtenerToken();
     const headers = new HttpHeaders().set('Authorization', `Bearer ${token}`);
+    console.log('Token usado para getRoles:', token);
     
     return this.http.get<any>(`${this.apiUrl}roles`, { headers }).pipe(
-      map(resp => resp.data)
+      map(resp => {
+        console.log('Respuesta original de roles:', resp);
+        // Verificar si la respuesta tiene el formato esperado (con propiedad data)
+        if (resp && resp.data && Array.isArray(resp.data)) {
+          return resp.data;
+        } else if (Array.isArray(resp)) {
+          return resp;
+        } else {
+          console.error('Formato de respuesta inesperado en getRoles:', resp);
+          return [];
+        }
+      })
     );
   }
   
