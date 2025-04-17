@@ -9,7 +9,7 @@ import { AuthService } from './auth.service';
   providedIn: 'root'
 })
 export class RoleService {
-  private apiUrl = environment.apiUrl;  // URL base del backend
+  private apiUrl = environment.apiUrl + 'roles';  // URL base del backend + endpoint de roles
 
   constructor(private http: HttpClient, private authService: AuthService) {}
 
@@ -19,7 +19,7 @@ export class RoleService {
     const headers = new HttpHeaders().set('Authorization', `Bearer ${token}`);
     console.log('Token usado para getRoles:', token);
     
-    return this.http.get<any>(`${this.apiUrl}roles`, { headers }).pipe(
+    return this.http.get<any>(`${this.apiUrl}`, { headers }).pipe(
       map(resp => {
         console.log('Respuesta original de roles:', resp);
         // Verificar si la respuesta tiene el formato esperado (con propiedad data)
@@ -47,21 +47,23 @@ export class RoleService {
   }
 
   // ✅ Crear un nuevo rol
-  createRole(role: Rol): Observable<Rol> {
+  createRole(nombreRol: string): Observable<Rol> {
     const headers = new HttpHeaders({
       Authorization: `Bearer ${this.authService.obtenerToken()}`
     });
 
-    return this.http.post<Rol>(this.apiUrl, role, { headers });
+    // Usar el parámetro nombre en la URL y enviar un array en el body como en el curl
+    return this.http.post<Rol>(`${this.apiUrl}?nombre=${nombreRol}`, ["string"], { headers });
   }
 
   // ✅ Actualizar un rol existente
-  updateRole(id: number, role: Rol): Observable<Rol> {
+  updateRole(id: number, nombreRol: string): Observable<Rol> {
     const headers = new HttpHeaders({
       Authorization: `Bearer ${this.authService.obtenerToken()}`
     });
 
-    return this.http.put<Rol>(`${this.apiUrl}/${id}`, role, { headers });
+    // Usar el parámetro nombre en la URL y enviar un array en el body como en el curl
+    return this.http.put<Rol>(`${this.apiUrl}/${id}?nombre=${nombreRol}`, ["string"], { headers });
   }
 
   // ✅ Eliminar un rol

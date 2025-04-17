@@ -1,5 +1,5 @@
 import { CommonModule } from '@angular/common';
-import { Component } from '@angular/core';
+import { Component, OnInit } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { BrowserModule } from '@angular/platform-browser';
 import Swal from 'sweetalert2'
@@ -17,7 +17,7 @@ import { UsuarioDTO } from '../../models/usuario.model';
   styleUrl: './usuario.component.css'
 })
 
-export class UsuarioComponent {
+export class UsuarioComponent implements OnInit {
 
   isModalRegisterUserOpen: boolean = false;
   isModalUpdateUserOpen: boolean = false;
@@ -42,6 +42,9 @@ export class UsuarioComponent {
 
   constructor(private userService: UserService, private roleService: RoleService) {
     this.roles = [];
+  }
+
+  ngOnInit(): void {
     this.getRoles();
     this.getUsers();
   }
@@ -177,10 +180,22 @@ export class UsuarioComponent {
 
 
   getUsers() {
+    // Mostrar indicador de carga
+    Swal.fire({
+      title: 'Cargando usuarios...',
+      allowOutsideClick: false,
+      didOpen: () => {
+        Swal.showLoading();
+      }
+    });
+
     this.userService.listarUsuarios().subscribe(
       {
         next: (resp: any) => {
           console.log(resp);
+          // Cerrar indicador de carga
+          Swal.close();
+          
           // Verificar si la respuesta tiene el formato esperado (con propiedad data)
           if (resp && resp.data && Array.isArray(resp.data)) {
             this.users = resp.data;
@@ -195,6 +210,13 @@ export class UsuarioComponent {
         error: (error: any) => {
           console.log('Error al obtener usuarios:', error);
           this.users = []; // Inicializar como array vacío en caso de error
+          
+          // Cerrar indicador de carga y mostrar error
+          Swal.fire({
+            icon: 'error',
+            title: 'Error',
+            text: 'No se pudieron cargar los usuarios. Por favor, intente nuevamente.'
+          });
         }
       }
     );
@@ -223,16 +245,22 @@ export class UsuarioComponent {
       }
     });
 
-    const selectedRoleObj = this.roles.find(r => r.id === +this.roleUpdate);
-    let userData = {
+    // Crear objeto de datos base
+    let userData: any = {
       nombre: this.usernameUpdate,
       apellido: this.apellidoUpdate,
-      password: this.passwordUpdate,
       email: this.emailUpdate,
       telefono: this.telefonoUpdate,
       direccion: this.direccionUpdate,
       rolid: this.roleUpdate
     };
+
+    // Añadir la contraseña solo si no está vacía
+    if (this.passwordUpdate && this.passwordUpdate.trim() !== '') {
+      userData.password = this.passwordUpdate;
+    }
+
+    console.log('Datos de actualización:', userData);
 
     this.userService.actualizarUsuario(this.userIdSelected, userData).subscribe(
       {

@@ -40,6 +40,7 @@ export class UserService {
   }
 
   actualizarUsuario(id: number, usuario: UsuarioDTO): Observable<Usuario> {
+    console.log(usuario);
     return this.http.patch<Usuario>(`${this.apiUrl}/${id}`, usuario);
   }
 
@@ -51,6 +52,6 @@ export class UserService {
     return this.http.patch<void>(`${this.apiUrl}/${id}/activar`, {});
   }
   deleteUser(id: number): Observable<void> {
-    return this.http.delete<void>(`${this.apiUrl}${id}`);
+    return this.http.delete<void>(`${this.apiUrl}/${id}`);
   }
 }
