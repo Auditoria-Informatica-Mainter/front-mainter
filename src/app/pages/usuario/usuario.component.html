@@ -12,7 +12,6 @@
             </div>
         </div>
         <div class="p-6 overflow-x-scroll px-0 pt-0 pb-2">
-
             <table class="w-full min-w-[640px] table-auto">
                 <thead>
                     <tr>
@@ -22,7 +21,11 @@
                         </th>
                         <th class="border-b border-blue-gray-50 py-3 px-6 text-left">
                             <p class="block antialiased font-sans text-[11px] font-medium uppercase text-blue-gray-400">
-                                Nombre Completo</p>
+                                Nombre</p>
+                        </th>
+                        <th class="border-b border-blue-gray-50 py-3 px-6 text-left">
+                            <p class="block antialiased font-sans text-[11px] font-medium uppercase text-blue-gray-400">
+                                Apellido</p>
                         </th>
                         <th class="border-b border-blue-gray-50 py-3 px-6 text-left">
                             <p class="block antialiased font-sans text-[11px] font-medium uppercase text-blue-gray-400">
@@ -55,7 +58,11 @@
                         </td>
                         <td class="py-3 px-5 border-b border-blue-gray-50">
                             <p class="block antialiased font-sans text-xs font-medium text-blue-gray-600">{{
-                                user.nombre_completo }}</p>
+                                user.nombre }}</p>
+                        </td>
+                        <td class="py-3 px-5 border-b border-blue-gray-50">
+                            <p class="block antialiased font-sans text-xs font-medium text-blue-gray-600">{{
+                                user.apellido }}</p>
                         </td>
                         <td class="py-3 px-5 border-b border-blue-gray-50">
                             <p class="block antialiased font-sans text-xs font-medium text-blue-gray-600">{{
@@ -110,8 +117,14 @@
         <form (submit)="registerUser()" class="space-y-4">
 
             <div>
-                <label for="username" class="block text-sm font-medium text-gray-700">Nombre Completo</label>
+                <label for="username" class="block text-sm font-medium text-gray-700">Nombre</label>
                 <input type="text" id="username" [(ngModel)]="username" name="username"
+                    class="w-full mt-1 px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-600"
+                    required />
+            </div>
+            <div>
+                <label for="apellido" class="block text-sm font-medium text-gray-700">Apellido</label>
+                <input type="text" id="apellido" [(ngModel)]="apellido" name="apellido"
                     class="w-full mt-1 px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-600"
                     required />
             </div>
@@ -149,7 +162,7 @@
                 <select id="role" [(ngModel)]="selectedRole" name="role"
                     class="w-full mt-1 px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-600"
                     required>
-                    <option value="" disabled selected>Seleccione un role</option>
+                    <option [ngValue]="null" disabled>Seleccione un role</option>
                     <option *ngFor="let role of roles" [value]="role.id">{{ role.nombre }}</option>
                 </select>
             </div>
@@ -173,11 +186,18 @@
                 class="text-gray-600 text-2xl font-semibold hover:text-gray-900">&times;</button>
         </div>
 
-        <form (submit)="updateUser()" class="space-y-4">
+        <form (submit)="actualizarUsuario()" class="space-y-4">
 
             <div>
-                <label for="username" class="block text-sm font-medium text-gray-700">Nombre Completo</label>
+                <label for="username" class="block text-sm font-medium text-gray-700">Nombre</label>
                 <input type="text" id="usernameUpdate" [(ngModel)]="usernameUpdate" name="usernameUpdate"
+                    class="w-full mt-1 px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-600"
+                    required minlength="4" />
+            </div>
+
+            <div>
+                <label for="apellido" class="block text-sm font-medium text-gray-700">Apellido</label>
+                <input type="text" id="apellidoUpdate" [(ngModel)]="apellidoUpdate" name="apellidoUpdate"
                     class="w-full mt-1 px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-600"
                     required minlength="4" />
             </div>
