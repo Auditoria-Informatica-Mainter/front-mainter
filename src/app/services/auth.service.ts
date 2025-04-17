@@ -13,7 +13,6 @@ export class AuthService {
 
   login(email: string, password: string): Observable<any> {
     return this.http.post<any>(`${this.apiUrl}auth/login`, { email, password });
-
   }
 
   guardarToken(token: string) {
@@ -32,7 +31,7 @@ export class AuthService {
     localStorage.setItem('nombre', nombre);
     localStorage.setItem('email', email);
   }
-  
+
   obtenerNombre(): string {
     return localStorage.getItem('nombre') || '';
   }

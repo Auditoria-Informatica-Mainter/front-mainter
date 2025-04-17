@@ -14,12 +14,7 @@ export class SidebarComponent {
   nombreUsuario: string = '';
   emailUsuario: string = '';
 
-  ngAfterViewInit(): void {
-    // Si Flowbite usa auto init, esto lo asegura
-    if (typeof Flowbite !== 'undefined') {
-      Flowbite.init();
-    }
-  }
+  
 
   constructor(private authService: AuthService, private router: Router) {}
 
