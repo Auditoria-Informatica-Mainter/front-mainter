@@ -1,40 +1,63 @@
 import { Injectable } from '@angular/core';
-import { HttpClient } from '@angular/common/http';
-import { Observable } from 'rxjs';
+import { HttpClient, HttpHeaders } from '@angular/common/http';
+import { Observable, map } from 'rxjs';
 import { Rol } from '../models/rol.model';
 import { environment } from '../enviroment';
-
+import { AuthService } from './auth.service';
 
 @Injectable({
   providedIn: 'root'
 })
 export class RoleService {
-  private apiUrl = environment.apiUrl + 'roles/';
+  private apiUrl = environment.apiUrl;  // Asegúrate que coincide con tu backend: /mrp/roles
 
-  constructor(private http: HttpClient) {}
+  constructor(private http: HttpClient, private authService: AuthService) {}
 
-  // ✅ Get all roles from the backend
+  // ✅ Obtener todos los roles con token JWT
   getRoles(): Observable<Rol[]> {
-    return this.http.get<Rol[]>(this.apiUrl);
+    const token = this.authService.obtenerToken();
+    const headers = new HttpHeaders().set('Authorization', `Bearer ${token}`);
+    
+    return this.http.get<any>(`${this.apiUrl}roles`, { headers }).pipe(
+      map(resp => resp.data)
+    );
   }
+  
+  
 
-  // ✅ Get a specific role by ID
+  // ✅ Obtener un rol por su ID
   getRoleById(id: number): Observable<Rol> {
-    return this.http.get<Rol>(`${this.apiUrl}${id}`);
+    const headers = new HttpHeaders({
+      Authorization: `Bearer ${this.authService.obtenerToken()}`
+    });
+
+    return this.http.get<Rol>(`${this.apiUrl}/${id}`, { headers });
   }
 
-  // ✅ Create a new role
+  // ✅ Crear un nuevo rol
   createRole(role: Rol): Observable<Rol> {
-    return this.http.post<Rol>(this.apiUrl, role);
+    const headers = new HttpHeaders({
+      Authorization: `Bearer ${this.authService.obtenerToken()}`
+    });
+
+    return this.http.post<Rol>(this.apiUrl, role, { headers });
   }
 
-  // ✅ Update an existing role
+  // ✅ Actualizar un rol existente
   updateRole(id: number, role: Rol): Observable<Rol> {
-    return this.http.put<Rol>(`${this.apiUrl}${id}`, role);
+    const headers = new HttpHeaders({
+      Authorization: `Bearer ${this.authService.obtenerToken()}`
+    });
+
+    return this.http.put<Rol>(`${this.apiUrl}/${id}`, role, { headers });
   }
 
-  // ✅ Delete a role
+  // ✅ Eliminar un rol
   deleteRole(id: number): Observable<void> {
-    return this.http.delete<void>(`${this.apiUrl}${id}`);
+    const headers = new HttpHeaders({
+      Authorization: `Bearer ${this.authService.obtenerToken()}`
+    });
+
+    return this.http.delete<void>(`${this.apiUrl}/${id}`, { headers });
   }
 }

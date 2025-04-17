@@ -46,6 +46,7 @@ export class UsuarioComponent {
     this.getUsers();
   }
 
+ 
   getRoles() {
 
     this.roleService.getRoles().subscribe(

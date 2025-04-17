@@ -1,5 +1,6 @@
 import { Injectable } from '@angular/core';
-import { HttpClient } from '@angular/common/http';
+import { HttpClient, HttpHeaders } from '@angular/common/http';
+import { AuthService } from './auth.service';
 import { Observable } from 'rxjs';
 import { Usuario, UsuarioDTO } from '../models/usuario.model';
 import { environment } from '../enviroment';
@@ -11,12 +12,17 @@ export class UserService {
   private apiUrl = environment.apiUrl + 'user/';
   
 
-  constructor(private http: HttpClient) {}
+  constructor(private http: HttpClient, private authService: AuthService) {}
+
 
   listarUsuarios(): Observable<Usuario[]> {
-    return this.http.get<Usuario[]>(`${this.apiUrl}`);
+    const token = this.authService.obtenerToken();
+    const headers = new HttpHeaders({
+      Authorization: `Bearer ${token}`
+    });
+  
+    return this.http.get<Usuario[]>(`${this.apiUrl}`, { headers });
   }
-
   buscarUsuarios(search: string): Observable<Usuario[]> {
     return this.http.get<Usuario[]>(`${this.apiUrl}?search=${search}`);
   }
@@ -26,8 +32,15 @@ export class UserService {
   }
 
   registrarUsuario(usuario: UsuarioDTO): Observable<Usuario> {
-    return this.http.post<Usuario>(`${this.apiUrl}`, usuario);
+    const token = this.authService.obtenerToken();
+  
+    const headers = new HttpHeaders({
+      Authorization: `Bearer ${token}`
+    });
+  
+    return this.http.post<Usuario>(`${this.apiUrl}`, usuario, { headers });
   }
+  
 
   actualizarUsuario(id: number, usuario: UsuarioDTO): Observable<Usuario> {
     return this.http.patch<Usuario>(`${this.apiUrl}/${id}`, usuario);
