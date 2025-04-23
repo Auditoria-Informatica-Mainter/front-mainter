@@ -13,16 +13,21 @@ export class AuthService {
 
   login(email: string, password: string): Observable<any> {
     return this.http.post<any>(`${this.apiUrl}auth/login`, { email, password });
-
   }
 
+  private token: string | null = null;
+
+
+
   guardarToken(token: string) {
+    this.token = token;
     localStorage.setItem('token', token);
   }
 
-  obtenerToken() {
-    return localStorage.getItem('token');
+  obtenerToken(): string | null {
+    return this.token || localStorage.getItem('token');
   }
+
 
   cerrarSesion() {
     localStorage.removeItem('token');
@@ -32,7 +37,7 @@ export class AuthService {
     localStorage.setItem('nombre', nombre);
     localStorage.setItem('email', email);
   }
-  
+
   obtenerNombre(): string {
     return localStorage.getItem('nombre') || '';
   }

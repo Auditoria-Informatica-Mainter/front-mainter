@@ -1,3 +1,67 @@
+# Sistema MRP Frontend
+
+## Despliegue con Docker
+
+Para desplegar la aplicación usando Docker, sigue estos pasos:
+
+### Prerequisitos
+- Docker instalado en tu sistema
+- Docker Compose instalado en tu sistema
+
+### Instrucciones de despliegue
+
+1. Clona el repositorio:
+```bash
+git clone <url-del-repositorio>
+cd <nombre-del-repositorio>
+```
+
+2. Construye y levanta los contenedores con Docker Compose:
+```bash
+docker-compose up -d --build
+```
+
+3. Accede a la aplicación:
+Abre tu navegador y ve a http://localhost:4200
+
+### Comandos útiles
+
+- Ver logs de la aplicación:
+```bash
+docker-compose logs -f frontend
+```
+
+- Detener los contenedores:
+```bash
+docker-compose down
+```
+
+- Reconstruir después de cambios:
+```bash
+docker-compose up -d --build
+```
+
+## Desarrollo local sin Docker
+
+### Prerequisitos
+- Node.js (versión 18 o superior)
+- npm (viene con Node.js)
+
+### Instrucciones de desarrollo
+
+1. Instalar dependencias:
+```bash
+npm install
+```
+
+2. Iniciar servidor de desarrollo:
+```bash
+npm run start
+```
+
+3. Accede a la aplicación:
+Abre tu navegador y ve a http://localhost:4200
+
 # FrontSi2
 
 This project was generated with [Angular CLI](https://github.com/angular/angular-cli) version 18.2.18.

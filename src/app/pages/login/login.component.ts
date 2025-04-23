@@ -21,13 +21,13 @@ export class LoginComponent {
     this.authService.login(this.email, this.password).subscribe({
       next: (res) => {
         this.authService.guardarToken(res.token);
-        alert('¡Inicio de sesión exitoso!');
-        this.authService.guardarToken(res.token);
         this.authService.guardarDatosUsuario(res.nombre, res.email);
+        
+        alert('¡Inicio de sesión exitoso!');
         this.router.navigate(['/usuario']);
       },
       error: (err) => {
-        console.error(err);
+        console.error('Error de login:', err);
         alert('Credenciales inválidas');
       }
     });
