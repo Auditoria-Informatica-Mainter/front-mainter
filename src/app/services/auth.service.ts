@@ -14,7 +14,17 @@ export class AuthService {
   login(email: string, password: string): Observable<any> {
     return this.http.post<any>(`${this.apiUrl}auth/login`, { email, password });
   }
-
+  
+ // Método de registro (NUEVO)
+ registro(nombre: string, apellido: string, telefono: string, email: string, password: string): Observable<any> {
+  return this.http.post<any>(`${this.apiUrl}/auth/registro`, {
+    nombre,
+    apellido,
+    telefono,
+    email,
+    password
+  });
+}
   private token: string | null = null;
 
   
