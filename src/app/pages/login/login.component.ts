@@ -3,7 +3,7 @@ import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { Router, RouterModule } from '@angular/router';
 import { AuthService } from '../../services/auth.service';
-
+import Swal from 'sweetalert2';
 
 
 @Component({
@@ -25,12 +25,29 @@ export class LoginComponent {
         this.authService.guardarToken(res.token);
         this.authService.guardarDatosUsuario(res.nombre, res.email);
         
-        alert('¡Inicio de sesión exitoso!');
-        this.router.navigate(['/usuario']);
+        // Alerta de éxito con SweetAlert2
+        Swal.fire({
+          icon: 'success',
+          title: '¡Bienvenido!',
+          text: 'Inicio de sesión exitoso',
+          timer: 1500,
+          timerProgressBar: true,
+          showConfirmButton: false
+        }).then(() => {
+          this.router.navigate(['/usuario']);
+        });
       },
       error: (err) => {
         console.error('Error de login:', err);
-        alert('Credenciales inválidas');
+        
+        // Alerta de error con SweetAlert2
+        Swal.fire({
+          icon: 'error',
+          title: 'Error de autenticación',
+          text: 'Credenciales inválidas. Por favor, verifica tu email y contraseña.',
+          confirmButtonText: 'Intentar de nuevo',
+          confirmButtonColor: '#d33'
+        });
       }
     });
   }

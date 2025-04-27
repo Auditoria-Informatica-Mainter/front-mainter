@@ -3,6 +3,7 @@ import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { Router, RouterModule } from '@angular/router';
 import { AuthService } from '../../services/auth.service';
+import Swal from 'sweetalert2';
 
 @Component({
   selector: 'app-registro',
@@ -35,12 +36,38 @@ export class RegisterAdminComponent {
   registrarUsuario() {
     this.authService.registroAdmin(this.nombre, this.apellido, this.telefono, this.email, this.password).subscribe({
       next: (res) => {
-        alert('¡Registro exitoso! Ahora puedes iniciar sesión.');
-        this.router.navigate(['/login']);
+        // Limpiar los campos del formulario
+        this.nombre = '';
+        this.apellido = '';
+        this.telefono = '';
+        this.email = '';
+        this.password = '';
+        this.confirmPassword = '';
+        
+        // Mostrar mensaje de éxito con SweetAlert2
+        Swal.fire({
+          icon: 'success',
+          title: '¡Registro exitoso!',
+          text: 'Ahora puedes iniciar sesión con tus credenciales.',
+          confirmButtonText: 'Aceptar',
+          confirmButtonColor: '#3085d6'
+        }).then((result) => {
+          if (result.isConfirmed) {
+            this.router.navigate(['/login']);
+          }
+        });
       },
       error: (err) => {
         console.error('Error en el registro:', err);
-        alert('Error al registrar usuario: ' + (err.error?.message || 'Intente nuevamente'));
+        
+        // Mostrar mensaje de error con SweetAlert2
+        Swal.fire({
+          icon: 'error',
+          title: 'Error en el registro',
+          text: err.error?.message || 'Ha ocurrido un error. Intente nuevamente.',
+          confirmButtonText: 'Aceptar',
+          confirmButtonColor: '#d33'
+        });
       }
     });
   }
