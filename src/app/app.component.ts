@@ -1,7 +1,7 @@
 import { Component } from '@angular/core';
 import { Router, RouterModule } from '@angular/router';
 import { SidebarComponent } from './components/sidebar/sidebar.component';
-import { CommonModule } from '@angular/common'; 
+import { CommonModule } from '@angular/common';
 
 @Component({
   selector: 'app-root',
@@ -13,9 +13,9 @@ import { CommonModule } from '@angular/common';
 export class AppComponent {
   title = 'frontSi2';
 
-  constructor(public router: Router) {}
+  constructor(public router: Router) { }
 
   isLoginRoute(): boolean {
-    return this.router.url === '/login';
+    return this.router.url === '/login' || this.router.url === '/mrp';;
   }
 }

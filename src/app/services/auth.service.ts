@@ -15,13 +15,19 @@ export class AuthService {
     return this.http.post<any>(`${this.apiUrl}auth/login`, { email, password });
   }
 
+  private token: string | null = null;
+
+
+
   guardarToken(token: string) {
+    this.token = token;
     localStorage.setItem('token', token);
   }
 
-  obtenerToken() {
-    return localStorage.getItem('token');
+  obtenerToken(): string | null {
+    return this.token || localStorage.getItem('token');
   }
+
 
   cerrarSesion() {
     localStorage.removeItem('token');
