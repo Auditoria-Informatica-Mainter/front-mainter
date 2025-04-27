@@ -27,10 +27,10 @@ export class AuthService {
 }
   private token: string | null = null;
 
-  
+
 
   guardarToken(token: string) {
-   this.token = token;
+    this.token = token;
     localStorage.setItem('token', token);
   }
 

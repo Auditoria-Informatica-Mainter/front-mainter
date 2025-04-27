@@ -3,15 +3,19 @@ import { LoginComponent } from './pages/login/login.component';
 import { UsuarioComponent } from './pages/usuario/usuario.component';
 import { RolComponent } from './pages/rol/rol.component';
 import { RegisterAdminComponent } from './pages/register-admin/register-admin.component';
-//import { ProductoComponent } from './pages/productos/producto.component';
-//import { VentasComponent } from './pages/ventas/ventas.component';
+import CategoriasComponent from './pages/categorias/categorias.component';
+import { SubcategoriasComponent } from './pages/subcategorias/subcategorias.component';
+import { LandingPageComponent } from './pages/landing-page/landing-page.component';
 
 export const routes: Routes = [
   { path: 'login', component: LoginComponent },
   { path: 'registro', component: RegisterAdminComponent },
   { path: 'usuario', component: UsuarioComponent },
   { path: 'roles', component: RolComponent },
- // { path: 'productos', component: ProductoComponent },
- // { path: 'ventas', component: VentasComponent },
-  { path: '', redirectTo: 'login', pathMatch: 'full' }
+  { path: 'categorias', component: CategoriasComponent },
+  { path: 'subcategorias', component: SubcategoriasComponent },
+  { path: 'mrp', component: LandingPageComponent },
+  // { path: '', redirectTo: 'login', pathMatch: 'full' },  //anterior pagina de inicio por defecto
+  { path: '', redirectTo: 'mrp', pathMatch: 'full' },
+  { path: '**', redirectTo: '/mrp' }
 ];
