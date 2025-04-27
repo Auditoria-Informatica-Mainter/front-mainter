@@ -16,14 +16,17 @@ export class AuthService {
   }
   
  // Método de registro (NUEVO)
- registro(nombre: string, apellido: string, telefono: string, email: string, password: string): Observable<any> {
-  return this.http.post<any>(`${this.apiUrl}/auth/registro`, {
+// En auth.service.ts
+registroAdmin(nombre: string, apellido: string, telefono: string, email: string, password: string) {
+  const usuarioDTO = {
     nombre,
     apellido,
     telefono,
     email,
     password
-  });
+  };
+  
+  return this.http.post<any>(`${this.apiUrl}auth/registerAdmin`, usuarioDTO);
 }
   private token: string | null = null;
 

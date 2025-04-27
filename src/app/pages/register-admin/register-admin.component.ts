@@ -33,7 +33,7 @@ export class RegisterAdminComponent {
   }
 
   registrarUsuario() {
-    this.authService.registro(this.nombre, this.apellido, this.telefono, this.email, this.password).subscribe({
+    this.authService.registroAdmin(this.nombre, this.apellido, this.telefono, this.email, this.password).subscribe({
       next: (res) => {
         alert('¡Registro exitoso! Ahora puedes iniciar sesión.');
         this.router.navigate(['/login']);
