@@ -7,6 +7,9 @@ import CategoriasComponent from './pages/categorias/categorias.component';
 import { SubcategoriasComponent } from './pages/subcategorias/subcategorias.component';
 import { LandingPageComponent } from './pages/landing-page/landing-page.component';
 import { ProveedoresComponent } from './pages/proveedores/proveedores.component';
+import { SectorComponent } from './pages/sector/sector.component';
+import AlmacenComponent from './pages/almacen/almacen.component';
+
 
 export const routes: Routes = [
   { path: 'login', component: LoginComponent },
@@ -16,6 +19,8 @@ export const routes: Routes = [
   { path: 'categorias', component: CategoriasComponent },
   { path: 'subcategorias', component: SubcategoriasComponent },
   { path: 'proveedores', component: ProveedoresComponent },
+  { path: 'almacen', component: AlmacenComponent },
+  { path: 'sector', component: SectorComponent },
   { path: 'mrp', component: LandingPageComponent },
   // { path: '', redirectTo: 'login', pathMatch: 'full' },  //anterior pagina de inicio por defecto
   { path: '', redirectTo: 'mrp', pathMatch: 'full' },
