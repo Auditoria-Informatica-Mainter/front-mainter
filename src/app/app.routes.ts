@@ -9,6 +9,7 @@ import { LandingPageComponent } from './pages/landing-page/landing-page.componen
 import { ProveedoresComponent } from './pages/proveedores/proveedores.component';
 import { SectorComponent } from './pages/sector/sector.component';
 import AlmacenComponent from './pages/almacen/almacen.component';
+import { MaterialesComponent } from './pages/materiales/materiales.component';
 
 
 export const routes: Routes = [
@@ -21,6 +22,7 @@ export const routes: Routes = [
   { path: 'proveedores', component: ProveedoresComponent },
   { path: 'almacen', component: AlmacenComponent },
   { path: 'sector', component: SectorComponent },
+  { path: 'materiales', component: MaterialesComponent },
   { path: 'mrp', component: LandingPageComponent },
   // { path: '', redirectTo: 'login', pathMatch: 'full' },  //anterior pagina de inicio por defecto
   { path: '', redirectTo: 'mrp', pathMatch: 'full' },
