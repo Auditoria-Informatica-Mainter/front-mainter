@@ -1,8 +1,9 @@
-import { Component } from '@angular/core';
+import { Component, OnInit } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import Swal from 'sweetalert2';
 import { CommonModule } from '@angular/common';
 import { CategoriasService } from '../../services/categorias.service';
+import { SubcategoriasService } from '../../services/subcategorias.service';
 
 @Component({
   selector: 'app-categorias',
@@ -11,204 +12,132 @@ import { CategoriasService } from '../../services/categorias.service';
   templateUrl: './categorias.component.html',
   styleUrl: './categorias.component.css'
 })
-export default class CategoriasComponent {
+export default class CategoriasComponent implements OnInit {
 
   categorias: any[] = [];
-  categoria: any;
-  categoriaUpdate: any;
-  nuevoCategoria: any = { nombre: '' };
-  nombreCategoria: string = '';
-  categoriaIdSelected: any;
+  subcategorias: any[] = [];
+  nuevoCategoria: any = { nombre: '', descripcion: '', subCategoriaId: null };
+  categoriaUpdate: any = { id: null, nombre: '', descripcion: '', subCategoriaId: null };
   isModalRegisterCategoriaOpen: boolean = false;
   isModalUpdateCategoriaOpen: boolean = false;
 
-  constructor(private categoriaService: CategoriasService) { }
+  constructor(
+    private categoriaService: CategoriasService,
+    private subcategoriaService: SubcategoriasService
+  ) {}
 
   ngOnInit(): void {
     this.getCategorias();
+    this.getSubcategorias();
   }
 
   getCategorias(): void {
     this.categoriaService.getCategorias().subscribe({
-      next: (data) => {
-        this.categorias = data;
-      },
-      error: (error) => {
-        console.error('Error al obtener las Categorias', error);
-      }
+      next: (data) => this.categorias = data,
+      error: (error) => console.error('Error al obtener las Categorias', error)
     });
   }
 
-  XcreateCategoria(): void {
-    if (!this.nuevoCategoria.nombre.trim()) return;
-    this.categoriaService.createCategoria(this.nuevoCategoria).subscribe({
+  getSubcategorias(): void {
+    this.subcategoriaService.getSubcategorias().subscribe({
       next: (data) => {
-        this.categorias.push(data);
-        this.nuevoCategoria = { nombre: '' };
-        this.getCategorias();
-        Swal.fire({
-          position: "center",
-          icon: "success",
-          title: "Categoria registrada!",
-          showConfirmButton: false,
-          timer: 2500
-        });
-        setTimeout(() => {
-          this.closeRegisterCategoriaModal();
-        }, 2600);
+        this.subcategorias = data;
+        console.log('Subcategorías recibidas:', this.subcategorias); // Verifica cómo se reciben las subcategorías
       },
-      error: (error: any) => {
-        console.log('Error al registrar la categoria:', error);
-        Swal.fire({
-          position: "center",
-          icon: "error",
-          title: "Error al registrar la categoria!",
-          showConfirmButton: false,
-          timer: 2500
-        });
-      }
+      error: (error) => console.error('Error al obtener las Subcategorias', error)
     });
   }
 
-  activeRegisterForm() {
+  activeRegisterForm(): void {
+    this.nuevoCategoria = { nombre: '', descripcion: '', subCategoriaId: null };
     this.isModalRegisterCategoriaOpen = true;
   }
 
-  openModalToUpdateCategoria(categoria: any) {
-    console.log('categoria id: ' + categoria.id);
-    this.isModalUpdateCategoriaOpen = true;
-    this.categoriaUpdate = categoria.nombre;
-    this.categoriaIdSelected = categoria.id;
-  }
-
-  XupdateCategoria() {
-    let categoriaData = {
-      nombre: this.categoriaUpdate,
-    };
-    this.categoriaService.updateCategoria(this.categoriaIdSelected, categoriaData).subscribe(
-      {
-        next: (resp: any) => {
-          console.log(resp);
-          if (resp) {
-            this.getCategorias();
-            Swal.fire({
-              position: "center",
-              icon: "success",
-              title: "Categoria actualizada!",
-              showConfirmButton: false,
-              timer: 2500
-            });
-
-            setTimeout(() => {
-              this.closeUpdateCategoriaModal();
-            }, 2600);
-          }
-
-        },
-        error: (error: any) => {
-          console.log(error);
-
-        }
-      }
-    );
-  }
-
   createCategoria(): void {
-    if (!this.nuevoCategoria.nombre.trim()) return;
+    const { nombre, descripcion, subCategoriaId } = this.nuevoCategoria;
 
-    const subcategoriaPayload = {
-      nombre: this.nuevoCategoria.nombre.trim(),
-      categoria: 1 //por defecto
-    };
+    if (!nombre.trim() || !descripcion.trim() || !subCategoriaId) {
+      Swal.fire("Error", "Todos los campos son obligatorios", "error");
+      return;
+    }
 
-    this.categoriaService.createCategoria(subcategoriaPayload).subscribe({
-      next: (data) => {
-        this.categorias.push(data);
-        this.nuevoCategoria = { nombre: '' };
+    this.categoriaService.createCategoria(this.nuevoCategoria).subscribe({
+      next: () => {
         this.getCategorias();
-        Swal.fire({
-          position: "center",
-          icon: "success",
-          title: "Categoria registrada!",
-          showConfirmButton: false,
-          timer: 2500
-        });
-        setTimeout(() => {
-          this.closeRegisterCategoriaModal();
-        }, 2600);
+        Swal.fire("Categoría registrada", "", "success");
+        this.closeRegisterCategoriaModal();
       },
-      error: (error: any) => {
-        console.log('Error al registrar la categoria:', error);
-        Swal.fire({
-          position: "center",
-          icon: "error",
-          title: "Error al registrar la categoria!",
-          showConfirmButton: false,
-          timer: 2500
+      error: (err) => {
+        console.error('Error al registrar categoría', err);
+        Swal.fire("Error al registrar la categoría", "", "error");
+      }
+    });
+  }
+
+  openModalToUpdateCategoria(categoria: any): void {
+    this.categoriaUpdate = {
+      id: categoria.id,
+      nombre: categoria.nombre,
+      descripcion: categoria.descripcion,
+      subCategoriaId: categoria.subCategoria?.id || null
+    };
+    this.isModalUpdateCategoriaOpen = true;
+  }
+
+  updateCategoria(): void {
+    const { id, nombre, descripcion, subCategoriaId } = this.categoriaUpdate;
+
+    if (!id || !nombre.trim() || !descripcion.trim() || !subCategoriaId) {
+      Swal.fire("Error", "Todos los campos son obligatorios", "error");
+      return;
+    }
+
+    this.categoriaService.updateCategoria(id, {
+      nombre: nombre.trim(),
+      descripcion: descripcion.trim(),
+      subCategoriaId
+    }).subscribe({
+      next: () => {
+        this.getCategorias();
+        Swal.fire("Categoría actualizada", "", "success");
+        this.closeUpdateCategoriaModal();
+      },
+      error: (err) => {
+        console.error('Error al actualizar categoría', err);
+        Swal.fire("Error al actualizar la categoría", "", "error");
+      }
+    });
+  }
+
+  deleteCategoria(categoria: any): void {
+    Swal.fire({
+      title: '¿Estás seguro?',
+      text: 'Esta acción no se puede deshacer.',
+      icon: 'warning',
+      showCancelButton: true,
+      confirmButtonText: 'Sí, eliminar',
+      cancelButtonText: 'Cancelar'
+    }).then((result) => {
+      if (result.isConfirmed) {
+        this.categoriaService.deleteCategoria(categoria.id).subscribe({
+          next: () => {
+            this.getCategorias();
+            Swal.fire("Categoría eliminada", "", "success");
+          },
+          error: (err) => {
+            console.error('Error al eliminar categoría', err);
+            Swal.fire("Error al eliminar la categoría", "", "error");
+          }
         });
       }
     });
   }
 
-  updateCategoria() {
-    const categoriaData = {
-      nombre: this.categoriaUpdate.trim(),
-      categoria: 1 // pertenece a la categoría por defecto
-    };
-
-    this.categoriaService.updateCategoria(this.categoriaIdSelected, categoriaData).subscribe(
-      {
-        next: (resp: any) => {
-          console.log(resp);
-          if (resp) {
-            this.getCategorias();
-            Swal.fire({
-              position: "center",
-              icon: "success",
-              title: "Categoria actualizada!",
-              showConfirmButton: false,
-              timer: 2500
-            });
-
-            setTimeout(() => {
-              this.closeUpdateCategoriaModal();
-            }, 2600);
-          }
-        },
-        error: (error: any) => {
-          console.log(error);
-        }
-      }
-    );
-  }
-
-  deleteCategoria(categoria: any) {
-    this.categoriaService.deleteCategoria(categoria.id).subscribe(
-      {
-        next: (resp: any) => {
-          console.log(resp);
-          this.getCategorias();
-          Swal.fire({
-            position: "center",
-            icon: "success",
-            title: "Categoria eliminada!",
-            showConfirmButton: false,
-            timer: 2500
-          });
-        },
-        error: (error: any) => {
-          console.log(error);
-
-        }
-      }
-    );
-
-  }
-  closeRegisterCategoriaModal() {
+  closeRegisterCategoriaModal(): void {
     this.isModalRegisterCategoriaOpen = false;
   }
 
-  closeUpdateCategoriaModal() {
+  closeUpdateCategoriaModal(): void {
     this.isModalUpdateCategoriaOpen = false;
   }
 }
