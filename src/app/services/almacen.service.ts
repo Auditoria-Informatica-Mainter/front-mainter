@@ -4,6 +4,7 @@ import { Observable, throwError } from 'rxjs';
 import { catchError } from 'rxjs/operators';
 import { environment } from '../enviroment';
 import { AuthService } from './auth.service';
+import { map } from 'rxjs/operators';
 
 
 
@@ -20,7 +21,11 @@ export class AlmacenService {
       'Authorization': `Bearer ${this.authService.obtenerToken()}` 
     });
   
-    return this.http.get<any[]>(this.apiUrl, { headers });
+    return this.http.get<any>(this.apiUrl, { headers }).pipe(
+      map(response => response.data)
+    );
+
+
   }
   
 
