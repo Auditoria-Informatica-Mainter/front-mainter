@@ -29,6 +29,5 @@ export const routes: Routes = [
   // { path: '', redirectTo: 'login', pathMatch: 'full' },  //anterior pagina de inicio por defecto
   { path: '', redirectTo: 'mrp', pathMatch: 'full' },
   { path: '**', redirectTo: '/mrp' },
-,
 
 ];
