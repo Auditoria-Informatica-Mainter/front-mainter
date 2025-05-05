@@ -12,7 +12,8 @@ import { SubcategoriasService } from '../../services/subcategorias.service';
   styleUrl: './subcategorias.component.css'
 })
 export class SubcategoriasComponent {
-
+  subcategoriasFiltradas: any[] = []; // Subcategorías visibles según filtro
+  filtro: string = '';
   subcategorias: any[] = [];
   subcategoriaUpdate: string = '';
   subcategoriaDescripcionUpdate: string = '';
@@ -28,14 +29,34 @@ export class SubcategoriasComponent {
   }
 
   getSubcategorias(): void {
+    Swal.fire({
+      title: 'Cargando subcategorias...',
+      allowOutsideClick: false,
+      didOpen: () => {
+        Swal.showLoading();
+      }
+    });
     this.subcategoriasService.getSubcategorias().subscribe({
       next: (data) => {
         this.subcategorias = data;
+          Swal.close();
+        this.subcategoriasFiltradas = data; // Mostrar todas al inicio
       },
       error: (error) => {
         console.error('Error al obtener las subcategorias', error);
       }
     });
+  }
+
+  buscarSubcategorias(): void {
+    const termino = this.filtro.trim().toLowerCase();
+    if (termino === '') {
+      this.subcategoriasFiltradas = this.subcategorias;
+    } else {
+      this.subcategoriasFiltradas = this.subcategorias.filter(sub =>
+        sub.nombre.toLowerCase().includes(termino)
+      );
+    }
   }
 
   createSubcategoria(): void {

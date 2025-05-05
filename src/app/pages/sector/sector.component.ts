@@ -279,9 +279,8 @@ export class SectorComponent implements OnInit {
             console.error('Formato de respuesta inesperado:', resp);
             this.sectores = []; // Inicializar como array vacío para evitar errores
           }
-          
-          // Aplicar el filtro si hay término de búsqueda
-          this.filtrarSectores();
+          this.sectoresFiltrados = [...this.sectores];
+          // Aplicar el filtro si hay término de búsqueda  this.filtrarSectores();
         },
         error: (error: any) => {
           console.log('Error al obtener sectores:', error);
@@ -458,6 +457,17 @@ export class SectorComponent implements OnInit {
 
   closeUpdateSectorModal() {
     this.isModalUpdateSectorOpen = false;
+  }
+
+  buscarSector(): void {
+    const termino = this.terminoBusqueda.trim().toLowerCase();
+    if (termino === '') {
+      this.sectoresFiltrados = this.sectores;
+    } else {
+      this.sectoresFiltrados = this.sectores.filter(sub =>
+        sub.nombre.toLowerCase().includes(termino)
+      );
+    }
   }
 
   filtrarSectores() {

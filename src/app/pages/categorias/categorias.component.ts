@@ -13,7 +13,8 @@ import { SubcategoriasService } from '../../services/subcategorias.service';
   styleUrl: './categorias.component.css'
 })
 export default class CategoriasComponent implements OnInit {
-
+  categoriasFiltradas: any[] = []; // visibles según filtro
+  filtro: string = '';
   categorias: any[] = [];
   subcategorias: any[] = [];
   nuevoCategoria: any = { nombre: '', descripcion: '', subCategoriaId: null };
@@ -32,10 +33,30 @@ export default class CategoriasComponent implements OnInit {
   }
 
   getCategorias(): void {
-    this.categoriaService.getCategorias().subscribe({
-      next: (data) => this.categorias = data,
-      error: (error) => console.error('Error al obtener las Categorias', error)
+    Swal.fire({
+      title: 'Cargando categorias...',
+      allowOutsideClick: false,
+      didOpen: () => {
+        Swal.showLoading();
+      }
     });
+    this.categoriaService.getCategorias().subscribe({
+      next: (data) => {this.categorias = data;
+      Swal.close();
+      this.categoriasFiltradas = data; // Mostrar todas al inicio
+      },error: (error) => console.error('Error al obtener las Categorias', error)
+    });
+  }
+
+  buscarCategorias(): void {
+    const termino = this.filtro.trim().toLowerCase();
+    if (termino === '') {
+      this.categoriasFiltradas = this.categorias;
+    } else {
+      this.categoriasFiltradas = this.categorias.filter(sub =>
+        sub.nombre.toLowerCase().includes(termino)
+      );
+    }
   }
 
   getSubcategorias(): void {

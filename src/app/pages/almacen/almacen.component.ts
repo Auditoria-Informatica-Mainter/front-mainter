@@ -27,6 +27,8 @@ export default class AlmacenComponent implements OnInit {
   // Filtro de capacidad
   capacidadFiltro: number = 0;
   almacenIdSeleccionado: number = 0;
+  almacenFiltrados: any[] = []; // visibles según filtro
+  filtro: string = '';
 
   constructor(private almacenService: AlmacenService) { }
 
@@ -35,6 +37,13 @@ export default class AlmacenComponent implements OnInit {
   }
     
   getAlmacenes(): void {
+    Swal.fire({
+    title: 'Cargando almacenes...',
+    allowOutsideClick: false,
+    didOpen: () => {
+      Swal.showLoading();
+    }
+  });
     this.almacenService.getAlmacenes().subscribe({
       next: (data: any) => {
         console.log('Respuesta del servidor en getAlmacenes():', data);
@@ -69,7 +78,7 @@ export default class AlmacenComponent implements OnInit {
           console.error('Respuesta con formato desconocido:', data);
           this.almacenes = [];
         }
-        
+        this.almacenFiltrados = [...this.almacenes];
         console.log('Almacenes procesados:', this.almacenes);
         console.log('Longitud del array de almacenes:', this.almacenes.length);
         
@@ -89,6 +98,16 @@ export default class AlmacenComponent implements OnInit {
     });
   }
   
+  buscarAlmacenes(): void {
+    const termino = this.filtro.trim().toLowerCase();
+    if (termino === '') {
+      this.almacenFiltrados = this.almacenes;
+    } else {
+      this.almacenFiltrados = this.almacenes.filter(sub =>
+        sub.nombre.toLowerCase().includes(termino)
+      );
+    }
+  }
 
   createAlmacen(): void {
     if (!this.nombreAlmacen.trim()) {

@@ -32,7 +32,9 @@
         </div>
         <input
           type="text"
-          placeholder="Buscar categorías..."
+          [(ngModel)]="filtro"
+          (input)="buscarCategorias()"
+          placeholder="Buscar categoría..."
           class="block w-full p-2 pl-10 text-sm text-gray-900 border border-gray-300 rounded-lg bg-gray-50 focus:ring-blue-500 focus:border-blue-500"
         />
       </div>
@@ -75,7 +77,7 @@
         </thead>
         <tbody>
           <tr
-            *ngFor="let categoria of categorias"
+            *ngFor="let categoria of categoriasFiltradas"
             class="border-b hover:bg-gray-50 transition-colors"
           >
             <td class="px-6 py-4 font-medium text-gray-900 whitespace-nowrap">
@@ -129,7 +131,7 @@
             </td>
           </tr>
           <!-- Estado vacío -->
-          <tr *ngIf="categorias.length === 0">
+          <tr *ngIf="categoriasFiltradas.length === 0">
             <td colspan="8" class="px-6 py-12 text-center text-gray-500">
               <svg
                 class="mx-auto h-12 w-12 text-gray-400"
@@ -145,7 +147,7 @@
                 ></path>
               </svg>
               <h3 class="mt-2 text-sm font-semibold text-gray-900">
-                No hay categorías
+                No se encontraron categorías
               </h3>
               <p class="mt-1 text-sm text-gray-500">
                 Comienza por crear una nueva categoría.

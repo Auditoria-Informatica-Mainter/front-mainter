@@ -4,6 +4,7 @@ import { FormsModule } from '@angular/forms';
 import { MaterialesService } from '../../services/materiales.service';
 import { SectorService } from '../../services/sector.service';
 import { CategoriasService } from '../../services/categorias.service';
+import Swal from 'sweetalert2';
 import { Subject, debounceTime, switchMap } from 'rxjs';
 
 @Component({
@@ -16,6 +17,8 @@ export class MaterialesComponent implements OnInit {
   materiales: any[] = [];
   sectores: any[] = [];
   categorias: any[] = [];
+  materialesFiltradas: any[] = []; // visibles según filtro
+  filtro: string = '';
 
   materialSeleccionado: any = null;
   nuevoMaterial: any = {
@@ -77,7 +80,34 @@ export class MaterialesComponent implements OnInit {
   }
 
   obtenerMateriales() {
-    this.materialesService.getMateriales().subscribe(data => this.materiales = data);
+    Swal.fire({
+    title: 'Cargando materias primas...',
+    allowOutsideClick: false,
+    didOpen: () => {
+      Swal.showLoading();
+    }
+  });
+    this.materialesService.getMateriales().subscribe({
+      next: (data) => {
+        this.materiales = data
+        Swal.close();
+        this.materialesFiltradas = data; // Mostrar todos al inicio
+      },
+      error: (error) => {
+        console.error('Error al obtener los materiales', error);
+      }
+    });
+  }
+
+  buscarMateriales(): void {
+    const termino = this.filtro.trim().toLowerCase();
+    if (termino === '') {
+      this.materialesFiltradas = this.materiales;
+    } else {
+      this.materialesFiltradas = this.materiales.filter(sub =>
+        sub.nombre.toLowerCase().includes(termino)
+      );
+    }
   }
 
   obtenerSectores() {
