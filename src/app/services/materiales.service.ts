@@ -9,11 +9,14 @@ import { environment } from '../enviroment';
 export class MaterialesService {
   private apiUrl = environment.apiUrl + 'api/materiales';
 
-  constructor(private http: HttpClient) {}
+  constructor(private http: HttpClient) {
+    console.log('URL de API de materiales:', this.apiUrl);
+  }
 
   getMateriales(): Observable<any[]> {
+    console.log('Llamando a getMateriales:', this.apiUrl);
     return this.http.get<any>(this.apiUrl).pipe(
-      tap(response => console.log('Materiales:', response)),
+      tap(response => console.log('Respuesta completa de materiales:', response)),
       map(resp => resp.data)
     );
   }

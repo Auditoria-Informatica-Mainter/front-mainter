@@ -58,4 +58,8 @@ registroAdmin(nombre: string, apellido: string, telefono: string, email: string,
   obtenerEmail(): string {
     return localStorage.getItem('email') || '';
   }
+  
+  obtenerUsuarioId(): number {
+    return Number(localStorage.getItem('userId')) || 1; // Valor por defecto 1 si no está establecido
+  }
 }

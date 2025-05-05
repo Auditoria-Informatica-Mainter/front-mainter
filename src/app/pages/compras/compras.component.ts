@@ -5,6 +5,7 @@ import { ComprasService } from '../../services/compras.service';
 import { DetallePedidoCompraService } from '../../services/detalle-pedido-compra.service';
 import { ProveedoresService } from '../../services/proveedores.service';
 import { MaterialesService } from '../../services/materiales.service';
+import { AuthService } from '../../services/auth.service';
 import { Compra, CompraDTO, DetallePedidoCompra, DetallePedidoCompraDTO } from '../../models/compra.model';
 
 @Component({
@@ -22,13 +23,17 @@ export class ComprasComponent implements OnInit {
   compraSeleccionada: Compra | null = null;
   detalleSeleccionado: DetallePedidoCompra | null = null;
   
+  // Nueva compra y sus detalles
   nuevaCompra: CompraDTO = {
     fecha: new Date().toISOString().split('T')[0],
-    total: 0,
     estado: 'PENDIENTE',
+    importe_total: 0,
+    importe_descuento: 0,
     proveedorId: 0,
-    observaciones: ''
+    usuarioId: 0
   };
+  
+  nuevosDetalles: DetallePedidoCompraDTO[] = [];
   
   nuevoDetalle: DetallePedidoCompraDTO = {
     compraId: 0,
@@ -53,7 +58,8 @@ export class ComprasComponent implements OnInit {
     private comprasService: ComprasService,
     private detallePedidoCompraService: DetallePedidoCompraService,
     private proveedoresService: ProveedoresService,
-    private materialesService: MaterialesService
+    private materialesService: MaterialesService,
+    private authService: AuthService
   ) {}
   
   ngOnInit(): void {
@@ -69,37 +75,85 @@ export class ComprasComponent implements OnInit {
   }
   
   obtenerProveedores(): void {
-    this.proveedoresService.getProveedores().subscribe(data => {
-      this.proveedores = data;
-    });
+    console.log('Obteniendo proveedores...');
+    this.proveedoresService.getProveedores().subscribe(
+      data => {
+        console.log('Proveedores recibidos:', data);
+        this.proveedores = data;
+      },
+      error => {
+        console.error('Error al obtener proveedores:', error);
+      }
+    );
   }
   
   obtenerMateriales(): void {
-    this.materialesService.getMateriales().subscribe(data => {
-      this.materiales = data;
-    });
+    console.log('Obteniendo materiales...');
+    this.materialesService.getMateriales().subscribe(
+      data => {
+        console.log('Materiales recibidos:', data);
+        this.materiales = data;
+      },
+      error => {
+        console.error('Error al obtener materiales:', error);
+      }
+    );
   }
   
   registrarCompra(): void {
+    // Obtener el ID del usuario actual
+    this.nuevaCompra.usuarioId = this.authService.obtenerUsuarioId();
+    
+    // Calcular el total basado en los detalles
+    let totalCompra = 0;
+    this.nuevosDetalles.forEach(detalle => {
+      totalCompra += detalle.subtotal;
+    });
+    
+    this.nuevaCompra.importe_total = totalCompra;
+    
     this.comprasService.createCompra(this.nuevaCompra).subscribe(response => {
-      this.obtenerCompras();
-      this.cerrarModalRegistroCompra();
-      this.limpiarFormularioCompra();
+      const compraId = response.data.id;
+      
+      // Crear los detalles asociados a la compra
+      if (this.nuevosDetalles.length > 0) {
+        const promesasDetalles = this.nuevosDetalles.map(detalle => {
+          detalle.compraId = compraId;
+          return this.detallePedidoCompraService.createDetallePedido(detalle).toPromise();
+        });
+        
+        Promise.all(promesasDetalles)
+          .then(() => {
+            this.obtenerCompras();
+            this.cerrarModalRegistroCompra();
+            this.limpiarFormularioCompra();
+          })
+          .catch(error => {
+            console.error('Error al guardar los detalles:', error);
+          });
+      } else {
+        this.obtenerCompras();
+        this.cerrarModalRegistroCompra();
+        this.limpiarFormularioCompra();
+      }
     });
   }
   
   actualizarCompra(): void {
-    if (!this.compraSeleccionada || !this.compraSeleccionada.id) return;
+    if (!this.compraSeleccionada) return;
     
     const compraDTO: CompraDTO = {
       fecha: this.compraSeleccionada.fecha,
-      total: this.compraSeleccionada.total,
       estado: this.compraSeleccionada.estado,
+      importe_total: this.compraSeleccionada.importe_total,
+      importe_descuento: this.compraSeleccionada.importe_descuento,
       proveedorId: this.compraSeleccionada.proveedorId,
+      usuarioId: this.compraSeleccionada.usuarioId,
       observaciones: this.compraSeleccionada.observaciones
     };
     
-    this.comprasService.updateCompra(this.compraSeleccionada.id, compraDTO).subscribe(() => {
+    const id = this.compraSeleccionada.id;
+    this.comprasService.updateCompra(id, compraDTO).subscribe(() => {
       this.obtenerCompras();
       this.cerrarModalEditarCompra();
     });
@@ -115,25 +169,56 @@ export class ComprasComponent implements OnInit {
   
   verDetallesCompra(compra: Compra): void {
     this.compraSeleccionada = compra;
-    this.detallePedidoCompraService.getDetallesPorCompra(compra.id!).subscribe(detalles => {
+    this.detallePedidoCompraService.getDetallesPorCompra(compra.id).subscribe(detalles => {
       this.detallesCompra = detalles;
       this.abrirModalDetalleCompra();
     });
   }
   
-  registrarDetalle(): void {
-    if (!this.compraSeleccionada || !this.compraSeleccionada.id) return;
+  agregarDetalleANuevaCompra(): void {
+    this.nuevoDetalle.subtotal = this.nuevoDetalle.cantidad * this.nuevoDetalle.precioUnitario;
+    this.nuevosDetalles.push({...this.nuevoDetalle});
     
-    this.nuevoDetalle.compraId = this.compraSeleccionada.id;
+    // Recalcular el total de la compra
+    let total = 0;
+    this.nuevosDetalles.forEach(detalle => {
+      total += detalle.subtotal;
+    });
+    this.nuevaCompra.importe_total = total;
+    
+    this.limpiarFormularioDetalle();
+  }
+  
+  eliminarDetalleDeNuevaCompra(index: number): void {
+    this.nuevosDetalles.splice(index, 1);
+    
+    // Recalcular el total de la compra
+    let total = 0;
+    this.nuevosDetalles.forEach(detalle => {
+      total += detalle.subtotal;
+    });
+    this.nuevaCompra.importe_total = total;
+  }
+  
+  registrarDetalle(): void {
+    if (!this.compraSeleccionada) return;
+    
+    // Asegurarnos de tener una referencia segura a id
+    const compraId = this.compraSeleccionada.id;
+    
+    this.nuevoDetalle.compraId = compraId;
     this.nuevoDetalle.subtotal = this.nuevoDetalle.cantidad * this.nuevoDetalle.precioUnitario;
     
     this.detallePedidoCompraService.createDetallePedido(this.nuevoDetalle).subscribe(() => {
       // Actualizar el total de la compra
       this.actualizarTotalCompra();
       // Recargar los detalles
-      this.detallePedidoCompraService.getDetallesPorCompra(this.compraSeleccionada!.id!).subscribe(detalles => {
-        this.detallesCompra = detalles;
-      });
+      // Verificamos nuevamente que la compra seleccionada exista
+      if (this.compraSeleccionada) {
+        this.detallePedidoCompraService.getDetallesPorCompra(this.compraSeleccionada.id).subscribe(detalles => {
+          this.detallesCompra = detalles;
+        });
+      }
       this.cerrarModalNuevoDetalle();
       this.limpiarFormularioDetalle();
     });
@@ -145,15 +230,17 @@ export class ComprasComponent implements OnInit {
         // Actualizar el total de la compra
         this.actualizarTotalCompra();
         // Recargar los detalles
-        this.detallePedidoCompraService.getDetallesPorCompra(this.compraSeleccionada!.id!).subscribe(detalles => {
-          this.detallesCompra = detalles;
-        });
+        if (this.compraSeleccionada) {
+          this.detallePedidoCompraService.getDetallesPorCompra(this.compraSeleccionada.id).subscribe(detalles => {
+            this.detallesCompra = detalles;
+          });
+        }
       });
     }
   }
   
   actualizarTotalCompra(): void {
-    if (!this.compraSeleccionada || !this.compraSeleccionada.id) return;
+    if (!this.compraSeleccionada) return;
     
     // Calcular el total a partir de los detalles
     let total = 0;
@@ -161,18 +248,25 @@ export class ComprasComponent implements OnInit {
       total += detalle.subtotal;
     });
     
-    // Actualizar el campo total de la compra
+    // Guardar una referencia segura al ID
+    const compraId = this.compraSeleccionada.id;
+    
+    // Actualizar el campo importe_total de la compra
     const compraActualizada: CompraDTO = {
       fecha: this.compraSeleccionada.fecha,
-      total: total,
       estado: this.compraSeleccionada.estado,
+      importe_total: total,
+      importe_descuento: this.compraSeleccionada.importe_descuento,
       proveedorId: this.compraSeleccionada.proveedorId,
+      usuarioId: this.compraSeleccionada.usuarioId,
       observaciones: this.compraSeleccionada.observaciones
     };
     
-    this.comprasService.updateCompra(this.compraSeleccionada.id, compraActualizada).subscribe(() => {
+    this.comprasService.updateCompra(compraId, compraActualizada).subscribe(() => {
       // Actualizar la compra seleccionada con el nuevo total
-      this.compraSeleccionada!.total = total;
+      if (this.compraSeleccionada) {
+        this.compraSeleccionada.importe_total = total;
+      }
       // Recargar todas las compras
       this.obtenerCompras();
     });
@@ -203,13 +297,15 @@ export class ComprasComponent implements OnInit {
   cambiarEstadoCompra(compra: Compra, nuevoEstado: string): void {
     const compraDTO: CompraDTO = {
       fecha: compra.fecha,
-      total: compra.total,
       estado: nuevoEstado,
+      importe_total: compra.importe_total,
+      importe_descuento: compra.importe_descuento,
       proveedorId: compra.proveedorId,
+      usuarioId: compra.usuarioId,
       observaciones: compra.observaciones
     };
     
-    this.comprasService.updateCompra(compra.id!, compraDTO).subscribe(() => {
+    this.comprasService.updateCompra(compra.id, compraDTO).subscribe(() => {
       this.obtenerCompras();
     });
   }
@@ -222,6 +318,7 @@ export class ComprasComponent implements OnInit {
   
   cerrarModalRegistroCompra(): void {
     this.isModalRegistroCompraOpen = false;
+    this.nuevosDetalles = [];
   }
   
   abrirModalDetalleCompra(): void {
@@ -257,16 +354,21 @@ export class ComprasComponent implements OnInit {
   limpiarFormularioCompra(): void {
     this.nuevaCompra = {
       fecha: new Date().toISOString().split('T')[0],
-      total: 0,
       estado: 'PENDIENTE',
+      importe_total: 0,
+      importe_descuento: 0,
       proveedorId: 0,
+      usuarioId: this.authService.obtenerUsuarioId(),
       observaciones: ''
     };
+    this.nuevosDetalles = [];
   }
   
   limpiarFormularioDetalle(): void {
+    const compraId = this.compraSeleccionada ? this.compraSeleccionada.id : 0;
+    
     this.nuevoDetalle = {
-      compraId: this.compraSeleccionada?.id || 0,
+      compraId: compraId,
       materialId: 0,
       cantidad: 1,
       precioUnitario: 0,
