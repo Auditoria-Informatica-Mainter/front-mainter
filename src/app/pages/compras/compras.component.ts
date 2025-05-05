@@ -63,9 +63,10 @@ export class ComprasComponent implements OnInit {
   ) {}
   
   ngOnInit(): void {
-    // Primero cargamos los proveedores y materiales, luego las compras
-    this.obtenerProveedores();
-    this.obtenerMateriales();
+    // Cargar los materiales primero, luego los proveedores y finalmente las compras
+    this.obtenerMateriales(() => {
+      this.obtenerProveedores();
+    });
   }
   
   obtenerProveedores(): void {
@@ -85,15 +86,29 @@ export class ComprasComponent implements OnInit {
     );
   }
   
-  obtenerMateriales(): void {
+  obtenerMateriales(callback?: () => void): void {
     console.log('Obteniendo materiales...');
-    this.materialesService.getMateriales().subscribe(
+    this.materialesService.getMaterialesCompletos().subscribe(
       data => {
-        console.log('Materiales recibidos:', data);
+        console.log(`Materiales recibidos: ${data.length} materiales`);
+        // Log detallado de los primeros 5 materiales para depuración
+        if (data && data.length > 0) {
+          console.log('Muestra de materiales (primeros 5):', 
+            data.slice(0, 5).map(m => ({ id: m.id, nombre: m.nombre })));
+        }
         this.materiales = data;
+        
+        // Si hay una función de callback, ejecutarla
+        if (callback) {
+          callback();
+        }
       },
       error => {
         console.error('Error al obtener materiales:', error);
+        // Si hay una función de callback, ejecutarla incluso si hay error
+        if (callback) {
+          callback();
+        }
       }
     );
   }
@@ -226,16 +241,120 @@ export class ComprasComponent implements OnInit {
   }
   
   verDetallesCompra(compra: Compra): void {
+    console.log('Abriendo detalles para compra ID:', compra.id);
     this.compraSeleccionada = compra;
-    this.detallePedidoCompraService.getDetallesPorCompra(compra.id).subscribe(detalles => {
-      this.detallesCompra = detalles;
-      this.abrirModalDetalleCompra();
+    
+    // Obtener los detalles de la compra
+    this.detallePedidoCompraService.getDetallesPorCompra(compra.id).subscribe({
+      next: (detalles) => {
+        console.log(`Recibidos ${detalles.length} detalles para la compra ${compra.id}`);
+        
+        // Si no hay materiales cargados, cargarlos primero
+        if (!this.materiales || this.materiales.length === 0) {
+          console.log('Cargando materiales antes de procesar detalles...');
+          this.materialesService.getMaterialesCompletos().subscribe({
+            next: (materiales) => {
+              console.log(`Materiales cargados: ${materiales.length}`);
+              this.materiales = materiales;
+              this.procesarDetallesConMateriales(detalles);
+            },
+            error: (err) => {
+              console.error('Error al cargar materiales:', err);
+              // Continuar sin materiales
+              this.procesarDetallesConMateriales(detalles);
+            }
+          });
+        } else {
+          // Ya tenemos materiales, procesar directamente
+          this.procesarDetallesConMateriales(detalles);
+        }
+      },
+      error: (error) => {
+        console.error('Error al obtener detalles de la compra:', error);
+        alert('Error al cargar los detalles de la compra. Por favor, intente nuevamente.');
+      }
     });
   }
   
+  // Método para procesar los detalles y enriquecer con información de materiales
+  private procesarDetallesConMateriales(detalles: DetallePedidoCompra[]): void {
+    console.log('Procesando detalles con materiales disponibles...');
+    
+    // Procesar cada detalle para asignar el objeto material completo
+    this.detallesCompra = detalles.map(detalle => {
+      // Verificar si ya tiene un objeto material completo
+      if (detalle.material && detalle.material.nombre) {
+        console.log(`Detalle ${detalle.id}: Ya tiene material con nombre "${detalle.material.nombre}"`);
+        return detalle;
+      }
+      
+      // Si tiene materialId, buscar en la lista de materiales
+      if (detalle.materialId && this.materiales && this.materiales.length > 0) {
+        const materialEncontrado = this.materiales.find(m => m.id === detalle.materialId);
+        
+        if (materialEncontrado) {
+          console.log(`Detalle ${detalle.id}: Material encontrado - "${materialEncontrado.nombre}"`);
+          // Crear una copia del detalle para no modificar el original
+          return {
+            ...detalle,
+            material: {
+              ...materialEncontrado
+            }
+          };
+        } else {
+          console.log(`Detalle ${detalle.id}: Material con ID ${detalle.materialId} no encontrado en la lista`);
+        }
+      }
+      
+      // Si no se pudo encontrar el material, retornar el detalle original
+      return detalle;
+    });
+    
+    // Abrir el modal con los detalles procesados
+    this.abrirModalDetalleCompra();
+  }
+  
   agregarDetalleANuevaCompra(): void {
+    // Validar que se haya seleccionado un material
+    if (!this.nuevoDetalle.materialId || this.nuevoDetalle.materialId <= 0) {
+      alert('Por favor seleccione un material');
+      return;
+    }
+    
+    // Validar que la cantidad sea mayor que 0
+    if (!this.nuevoDetalle.cantidad || this.nuevoDetalle.cantidad <= 0) {
+      alert('La cantidad debe ser mayor que 0');
+      return;
+    }
+    
+    // Validar que el precio unitario sea un número válido
+    if (this.nuevoDetalle.precioUnitario === undefined || this.nuevoDetalle.precioUnitario === null) {
+      this.nuevoDetalle.precioUnitario = 0;
+    }
+    
+    // Asegurar que el precio sea un número
+    this.nuevoDetalle.precioUnitario = Number(this.nuevoDetalle.precioUnitario);
+    
+    // Calcular el subtotal con valores seguros
     this.nuevoDetalle.subtotal = this.nuevoDetalle.cantidad * this.nuevoDetalle.precioUnitario;
-    this.nuevosDetalles.push({...this.nuevoDetalle});
+    
+    console.log('Agregando detalle a nueva compra:', JSON.stringify(this.nuevoDetalle));
+    
+    // Crear una copia del objeto para evitar referencias con todos los campos necesarios
+    const detalleCopia = {
+      compraId: this.nuevoDetalle.compraId,
+      materialId: this.nuevoDetalle.materialId,
+      cantidad: this.nuevoDetalle.cantidad,
+      precioUnitario: this.nuevoDetalle.precioUnitario,
+      subtotal: this.nuevoDetalle.subtotal,
+      // Añadir los campos que espera el backend
+      precio: this.nuevoDetalle.precioUnitario,
+      importe: this.nuevoDetalle.subtotal,
+      importe_desc: 0,
+      estado: 'PENDIENTE'
+    };
+    
+    this.nuevosDetalles.push(detalleCopia);
     
     // Recalcular el total de la compra
     let total = 0;
@@ -259,26 +378,71 @@ export class ComprasComponent implements OnInit {
   }
   
   registrarDetalle(): void {
-    if (!this.compraSeleccionada) return;
+    if (!this.compraSeleccionada) {
+      alert('No hay una compra seleccionada');
+      return;
+    }
+    
+    // Validar que se haya seleccionado un material
+    if (!this.nuevoDetalle.materialId || this.nuevoDetalle.materialId <= 0) {
+      alert('Por favor seleccione un material');
+      return;
+    }
+    
+    // Validar que la cantidad sea mayor que 0
+    if (!this.nuevoDetalle.cantidad || this.nuevoDetalle.cantidad <= 0) {
+      alert('La cantidad debe ser mayor que 0');
+      return;
+    }
     
     // Asegurarnos de tener una referencia segura a id
     const compraId = this.compraSeleccionada.id;
     
     this.nuevoDetalle.compraId = compraId;
+    
+    // Asegurar que el precio sea un número
+    if (this.nuevoDetalle.precioUnitario === undefined || this.nuevoDetalle.precioUnitario === null) {
+      this.nuevoDetalle.precioUnitario = 0;
+    }
+    
+    this.nuevoDetalle.precioUnitario = Number(this.nuevoDetalle.precioUnitario);
     this.nuevoDetalle.subtotal = this.nuevoDetalle.cantidad * this.nuevoDetalle.precioUnitario;
     
-    this.detallePedidoCompraService.createDetallePedido(this.nuevoDetalle).subscribe(() => {
-      // Actualizar el total de la compra
-      this.actualizarTotalCompra();
-      // Recargar los detalles
-      // Verificamos nuevamente que la compra seleccionada exista
-      if (this.compraSeleccionada) {
-        this.detallePedidoCompraService.getDetallesPorCompra(this.compraSeleccionada.id).subscribe(detalles => {
-          this.detallesCompra = detalles;
-        });
+    console.log('Registrando detalle de compra:', JSON.stringify(this.nuevoDetalle));
+    
+    // Crear una copia explícita para enviar al servicio con todos los campos del backend
+    const detalleParaEnviar = {
+      compraId: this.nuevoDetalle.compraId,
+      materialId: this.nuevoDetalle.materialId,
+      cantidad: this.nuevoDetalle.cantidad,
+      precioUnitario: this.nuevoDetalle.precioUnitario,
+      subtotal: this.nuevoDetalle.subtotal,
+      // Campos adicionales requeridos por el backend
+      precio: this.nuevoDetalle.precioUnitario,
+      importe: this.nuevoDetalle.subtotal,
+      importe_desc: 0,
+      estado: 'PENDIENTE'
+    };
+    
+    this.detallePedidoCompraService.createDetallePedido(detalleParaEnviar).subscribe({
+      next: (response) => {
+        console.log('Detalle registrado exitosamente:', response);
+        // Actualizar el total de la compra
+        this.actualizarTotalCompra();
+        // Recargar los detalles
+        // Verificamos nuevamente que la compra seleccionada exista
+        if (this.compraSeleccionada) {
+          this.detallePedidoCompraService.getDetallesPorCompra(this.compraSeleccionada.id).subscribe(detalles => {
+            this.detallesCompra = detalles;
+          });
+        }
+        this.cerrarModalNuevoDetalle();
+        this.limpiarFormularioDetalle();
+      },
+      error: (error) => {
+        console.error('Error al registrar detalle de compra:', error);
+        alert('Error al registrar el detalle. Por favor, intente nuevamente.');
       }
-      this.cerrarModalNuevoDetalle();
-      this.limpiarFormularioDetalle();
     });
   }
   
@@ -435,7 +599,18 @@ export class ComprasComponent implements OnInit {
   }
   
   calcularSubtotal(): void {
-    this.nuevoDetalle.subtotal = this.nuevoDetalle.cantidad * this.nuevoDetalle.precioUnitario;
+    // Asegurar que los valores son números
+    const cantidad = Number(this.nuevoDetalle.cantidad) || 0;
+    const precioUnitario = Number(this.nuevoDetalle.precioUnitario) || 0;
+    
+    // Actualizar las propiedades con los valores convertidos
+    this.nuevoDetalle.cantidad = cantidad;
+    this.nuevoDetalle.precioUnitario = precioUnitario;
+    
+    // Calcular el subtotal
+    this.nuevoDetalle.subtotal = cantidad * precioUnitario;
+    
+    console.log('Subtotal calculado:', this.nuevoDetalle.subtotal);
   }
   
   getNombreProveedor(proveedorId: number): string {
@@ -462,8 +637,32 @@ export class ComprasComponent implements OnInit {
   }
   
   getNombreMaterial(materialId: number): string {
-    const material = this.materiales.find(m => m.id === materialId);
-    return material ? material.nombre : 'No especificado';
+    // Validación básica
+    if (!materialId) {
+      return 'Material sin ID';
+    }
+    
+    // Si hay materiales disponibles, buscar por ID
+    if (this.materiales && this.materiales.length > 0) {
+      const material = this.materiales.find(m => m.id === materialId);
+      
+      if (material && material.nombre) {
+        return material.nombre;
+      }
+    }
+    
+    // Intentar cargar los materiales si no están disponibles o no se encontró el material
+    if (!this.materiales || this.materiales.length === 0) {
+      console.log(`Cargando materiales para encontrar material con ID ${materialId}...`);
+      // Cargamos los materiales sin bloquear la interfaz
+      this.materialesService.getMaterialesCompletos().subscribe(materiales => {
+        this.materiales = materiales;
+        console.log(`Materiales cargados: ${materiales.length}`);
+      });
+    }
+    
+    // Devolver un valor predeterminado mientras se cargan los materiales
+    return `Material #${materialId}`;
   }
   
   obtenerColorEstado(estado: string): string {
@@ -479,5 +678,32 @@ export class ComprasComponent implements OnInit {
       default:
         return 'bg-gray-100 text-gray-800';
     }
+  }
+  
+  // Método para diagnosticar problemas con detalles de compra
+  diagnosticarDetalle(detalle: DetallePedidoCompraDTO): void {
+    console.log('Iniciando diagnóstico del detalle:', JSON.stringify(detalle));
+    
+    // Asegurar que los valores sean números
+    const detalleDiagnostico = {
+      ...detalle,
+      cantidad: Number(detalle.cantidad),
+      precioUnitario: Number(detalle.precioUnitario),
+      subtotal: Number(detalle.subtotal),
+      // Añadir campos del backend
+      precio: Number(detalle.precioUnitario),
+      importe: Number(detalle.subtotal)
+    };
+    
+    this.detallePedidoCompraService.diagnosticarDetallePedido(detalleDiagnostico)
+      .subscribe({
+        next: (resultado) => {
+          console.log('Diagnóstico recibido del servidor:', resultado);
+          // Aquí podríamos mostrar un modal con los resultados si fuera necesario
+        },
+        error: (error) => {
+          console.error('Error durante el diagnóstico:', error);
+        }
+      });
   }
 } 
