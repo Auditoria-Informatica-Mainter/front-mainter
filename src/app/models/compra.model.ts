@@ -8,7 +8,11 @@ export interface Compra {
   usuarioId: number;
   observaciones?: string;
   // Relaciones
-  proveedor?: any;
+  proveedor?: {
+    id: number;
+    nombre: string;
+    [key: string]: any;
+  };
   usuario?: any;
   detalles?: DetallePedidoCompra[];
 }

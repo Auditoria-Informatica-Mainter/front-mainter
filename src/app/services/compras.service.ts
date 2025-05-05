@@ -10,12 +10,18 @@ import { Compra, CompraDTO } from '../models/compra.model';
 export class ComprasService {
   private apiUrl = environment.apiUrl + 'api/compras';
 
-  constructor(private http: HttpClient) {}
+  constructor(private http: HttpClient) {
+    console.log('URL de API de compras:', this.apiUrl);
+  }
 
   getCompras(): Observable<Compra[]> {
+    console.log('Llamando a getCompras:', this.apiUrl);
     return this.http.get<any>(this.apiUrl).pipe(
-      tap(response => console.log('Compras:', response)),
-      map(resp => resp.data)
+      tap(response => console.log('Respuesta completa de compras:', response)),
+      map(resp => {
+        console.log('Mapeando respuesta a arreglo:', resp.data);
+        return resp.data;
+      })
     );
   }
 
@@ -26,7 +32,10 @@ export class ComprasService {
   }
 
   createCompra(compra: CompraDTO): Observable<any> {
-    return this.http.post<any>(this.apiUrl, compra);
+    console.log('Enviando compra al servidor:', compra);
+    return this.http.post<any>(this.apiUrl, compra).pipe(
+      tap(response => console.log('Respuesta al crear compra:', response))
+    );
   }
 
   updateCompra(id: number, compra: CompraDTO): Observable<any> {

@@ -63,15 +63,9 @@ export class ComprasComponent implements OnInit {
   ) {}
   
   ngOnInit(): void {
-    this.obtenerCompras();
+    // Primero cargamos los proveedores y materiales, luego las compras
     this.obtenerProveedores();
     this.obtenerMateriales();
-  }
-  
-  obtenerCompras(): void {
-    this.comprasService.getCompras().subscribe(data => {
-      this.compras = data;
-    });
   }
   
   obtenerProveedores(): void {
@@ -80,9 +74,13 @@ export class ComprasComponent implements OnInit {
       data => {
         console.log('Proveedores recibidos:', data);
         this.proveedores = data;
+        // Una vez cargados los proveedores, cargamos las compras
+        this.obtenerCompras();
       },
       error => {
         console.error('Error al obtener proveedores:', error);
+        // Si hay error, intentamos cargar las compras de todas formas
+        this.obtenerCompras();
       }
     );
   }
@@ -100,7 +98,63 @@ export class ComprasComponent implements OnInit {
     );
   }
   
+  obtenerCompras(): void {
+    console.log('Obteniendo compras...');
+    this.comprasService.getCompras().subscribe(
+      data => {
+        console.log('Compras recibidas (sin procesar):', JSON.stringify(data));
+        
+        // Verificamos que cada compra tenga un proveedorId válido
+        this.compras = data.map(compra => {
+          // Depuración detallada de cada compra
+          console.log('Procesando compra:', compra);
+          console.log('ID de la compra:', compra.id);
+          console.log('proveedorId original:', compra.proveedorId);
+          console.log('objeto proveedor:', compra.proveedor);
+          
+          // Crear una copia para no modificar el objeto original
+          const compraProcessed = { ...compra };
+          
+          // Si proveedorId es undefined pero existe el objeto proveedor
+          if (compra.proveedor && compra.proveedor.id && !compra.proveedorId) {
+            console.log('Asignando proveedorId desde objeto proveedor:', compra.proveedor.id);
+            compraProcessed.proveedorId = compra.proveedor.id;
+          }
+          
+          // Si aún no tenemos proveedorId pero hay algo en proveedor que podría ser el id
+          if (!compraProcessed.proveedorId && compra.proveedor) {
+            // Intentar encontrar el id en alguna propiedad del objeto proveedor
+            for (const key in compra.proveedor) {
+              if (key.toLowerCase().includes('id') && typeof compra.proveedor[key] === 'number') {
+                console.log(`Encontrado posible proveedorId en proveedor.${key}:`, compra.proveedor[key]);
+                compraProcessed.proveedorId = compra.proveedor[key];
+                break;
+              }
+            }
+          }
+          
+          return compraProcessed;
+        });
+        
+        console.log('Compras procesadas:', this.compras);
+      },
+      error => {
+        console.error('Error al obtener compras:', error);
+      }
+    );
+  }
+  
   registrarCompra(): void {
+    // Verificar que proveedorId está correctamente asignado
+    console.log('Datos de compra a registrar:', this.nuevaCompra);
+    
+    // Comprobar si proveedorId es un número válido
+    if (!this.nuevaCompra.proveedorId || this.nuevaCompra.proveedorId <= 0) {
+      console.error('Error: proveedorId no es válido', this.nuevaCompra.proveedorId);
+      alert('Por favor seleccione un proveedor válido');
+      return;
+    }
+    
     // Obtener el ID del usuario actual
     this.nuevaCompra.usuarioId = this.authService.obtenerUsuarioId();
     
@@ -112,7 +166,11 @@ export class ComprasComponent implements OnInit {
     
     this.nuevaCompra.importe_total = totalCompra;
     
+    console.log('Enviando compra al servidor con estos datos:', JSON.stringify(this.nuevaCompra));
+    
     this.comprasService.createCompra(this.nuevaCompra).subscribe(response => {
+      console.log('Respuesta del servidor al crear compra:', response);
+      
       const compraId = response.data.id;
       
       // Crear los detalles asociados a la compra
@@ -381,7 +439,25 @@ export class ComprasComponent implements OnInit {
   }
   
   getNombreProveedor(proveedorId: number): string {
+    console.log('Buscando proveedor con ID:', proveedorId);
+    
+    // Si no hay proveedorId, devolvemos 'No especificado'
+    if (!proveedorId) {
+      return 'No especificado';
+    }
+    
+    // Si no hay proveedores cargados aún, devolvemos 'Cargando...'
+    if (!this.proveedores || this.proveedores.length === 0) {
+      return 'Cargando...';
+    }
+    
     const proveedor = this.proveedores.find(p => p.id === proveedorId);
+    
+    // Log para depuración
+    if (!proveedor) {
+      console.warn(`No se encontró proveedor con ID ${proveedorId}. Proveedores disponibles:`, this.proveedores.map(p => ({ id: p.id, nombre: p.nombre })));
+    }
+    
     return proveedor ? proveedor.nombre : 'No especificado';
   }
   

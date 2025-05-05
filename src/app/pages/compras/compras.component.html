@@ -70,7 +70,18 @@
           <tr *ngFor="let compra of compras" class="border-b hover:bg-gray-50 transition-colors">
             <td class="px-6 py-4 font-medium text-gray-900">{{ compra.id }}</td>
             <td class="px-6 py-4">{{ compra.fecha | date:'dd/MM/yyyy' }}</td>
-            <td class="px-6 py-4">{{ getNombreProveedor(compra.proveedorId) }}</td>
+            <td class="px-6 py-4">
+              <span *ngIf="compra.proveedorId && getNombreProveedor(compra.proveedorId) !== 'No especificado'">
+                {{ getNombreProveedor(compra.proveedorId) }}
+              </span>
+              <span *ngIf="!compra.proveedorId && compra.proveedor && compra.proveedor.nombre">
+                {{ compra.proveedor.nombre }}
+              </span>
+              <span *ngIf="(!compra.proveedorId && (!compra.proveedor || !compra.proveedor.nombre)) || 
+                       (compra.proveedorId && getNombreProveedor(compra.proveedorId) === 'No especificado')">
+                No especificado
+              </span>
+            </td>
             <td class="px-6 py-4">S/ {{ compra.importe_total | number:'1.2-2' }}</td>
             <td class="px-6 py-4">
               <span class="px-2 py-1 text-xs font-medium rounded-full" [ngClass]="obtenerColorEstado(compra.estado)">
@@ -531,7 +542,17 @@
               <span class="font-medium">Fecha:</span> {{ compraSeleccionada.fecha | date:'dd/MM/yyyy' }}
             </p>
             <p class="text-sm text-gray-600">
-              <span class="font-medium">Proveedor:</span> {{ getNombreProveedor(compraSeleccionada.proveedorId) }}
+              <span class="font-medium">Proveedor:</span>
+              <span *ngIf="compraSeleccionada.proveedorId && getNombreProveedor(compraSeleccionada.proveedorId) !== 'No especificado'">
+                {{ getNombreProveedor(compraSeleccionada.proveedorId) }}
+              </span>
+              <span *ngIf="!compraSeleccionada.proveedorId && compraSeleccionada.proveedor && compraSeleccionada.proveedor.nombre">
+                {{ compraSeleccionada.proveedor.nombre }}
+              </span>
+              <span *ngIf="(!compraSeleccionada.proveedorId && (!compraSeleccionada.proveedor || !compraSeleccionada.proveedor.nombre)) || 
+                       (compraSeleccionada.proveedorId && getNombreProveedor(compraSeleccionada.proveedorId) === 'No especificado')">
+                No especificado
+              </span>
             </p>
             <p class="text-sm text-gray-600">
               <span class="font-medium">Estado:</span>
