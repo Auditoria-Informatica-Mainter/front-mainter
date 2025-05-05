@@ -1,0 +1,483 @@
+import { Component, OnInit } from '@angular/core';
+import { CommonModule } from '@angular/common';
+import { FormsModule } from '@angular/forms';
+import { ComprasService } from '../../services/compras.service';
+import { DetallePedidoCompraService } from '../../services/detalle-pedido-compra.service';
+import { ProveedoresService } from '../../services/proveedores.service';
+import { MaterialesService } from '../../services/materiales.service';
+import { AuthService } from '../../services/auth.service';
+import { Compra, CompraDTO, DetallePedidoCompra, DetallePedidoCompraDTO } from '../../models/compra.model';
+
+@Component({
+  selector: 'app-compras',
+  standalone: true,
+  imports: [CommonModule, FormsModule],
+  templateUrl: './compras.component.html'
+})
+export class ComprasComponent implements OnInit {
+  compras: Compra[] = [];
+  proveedores: any[] = [];
+  materiales: any[] = [];
+  detallesCompra: DetallePedidoCompra[] = [];
+  
+  compraSeleccionada: Compra | null = null;
+  detalleSeleccionado: DetallePedidoCompra | null = null;
+  
+  // Nueva compra y sus detalles
+  nuevaCompra: CompraDTO = {
+    fecha: new Date().toISOString().split('T')[0],
+    estado: 'PENDIENTE',
+    importe_total: 0,
+    importe_descuento: 0,
+    proveedorId: 0,
+    usuarioId: 0
+  };
+  
+  nuevosDetalles: DetallePedidoCompraDTO[] = [];
+  
+  nuevoDetalle: DetallePedidoCompraDTO = {
+    compraId: 0,
+    materialId: 0,
+    cantidad: 1,
+    precioUnitario: 0,
+    subtotal: 0
+  };
+  
+  // Estados para filtrado
+  estadosFiltro: string[] = ['PENDIENTE', 'APROBADO', 'RECHAZADO', 'COMPLETADO'];
+  estadoSeleccionado: string = '';
+  proveedorSeleccionadoId: number = 0;
+  
+  // Modales
+  isModalRegistroCompraOpen: boolean = false;
+  isModalDetalleCompraOpen: boolean = false;
+  isModalNuevoDetalleOpen: boolean = false;
+  isModalEditarCompraOpen: boolean = false;
+  
+  constructor(
+    private comprasService: ComprasService,
+    private detallePedidoCompraService: DetallePedidoCompraService,
+    private proveedoresService: ProveedoresService,
+    private materialesService: MaterialesService,
+    private authService: AuthService
+  ) {}
+  
+  ngOnInit(): void {
+    // Primero cargamos los proveedores y materiales, luego las compras
+    this.obtenerProveedores();
+    this.obtenerMateriales();
+  }
+  
+  obtenerProveedores(): void {
+    console.log('Obteniendo proveedores...');
+    this.proveedoresService.getProveedores().subscribe(
+      data => {
+        console.log('Proveedores recibidos:', data);
+        this.proveedores = data;
+        // Una vez cargados los proveedores, cargamos las compras
+        this.obtenerCompras();
+      },
+      error => {
+        console.error('Error al obtener proveedores:', error);
+        // Si hay error, intentamos cargar las compras de todas formas
+        this.obtenerCompras();
+      }
+    );
+  }
+  
+  obtenerMateriales(): void {
+    console.log('Obteniendo materiales...');
+    this.materialesService.getMateriales().subscribe(
+      data => {
+        console.log('Materiales recibidos:', data);
+        this.materiales = data;
+      },
+      error => {
+        console.error('Error al obtener materiales:', error);
+      }
+    );
+  }
+  
+  obtenerCompras(): void {
+    console.log('Obteniendo compras...');
+    this.comprasService.getCompras().subscribe(
+      data => {
+        console.log('Compras recibidas (sin procesar):', JSON.stringify(data));
+        
+        // Verificamos que cada compra tenga un proveedorId válido
+        this.compras = data.map(compra => {
+          // Depuración detallada de cada compra
+          console.log('Procesando compra:', compra);
+          console.log('ID de la compra:', compra.id);
+          console.log('proveedorId original:', compra.proveedorId);
+          console.log('objeto proveedor:', compra.proveedor);
+          
+          // Crear una copia para no modificar el objeto original
+          const compraProcessed = { ...compra };
+          
+          // Si proveedorId es undefined pero existe el objeto proveedor
+          if (compra.proveedor && compra.proveedor.id && !compra.proveedorId) {
+            console.log('Asignando proveedorId desde objeto proveedor:', compra.proveedor.id);
+            compraProcessed.proveedorId = compra.proveedor.id;
+          }
+          
+          // Si aún no tenemos proveedorId pero hay algo en proveedor que podría ser el id
+          if (!compraProcessed.proveedorId && compra.proveedor) {
+            // Intentar encontrar el id en alguna propiedad del objeto proveedor
+            for (const key in compra.proveedor) {
+              if (key.toLowerCase().includes('id') && typeof compra.proveedor[key] === 'number') {
+                console.log(`Encontrado posible proveedorId en proveedor.${key}:`, compra.proveedor[key]);
+                compraProcessed.proveedorId = compra.proveedor[key];
+                break;
+              }
+            }
+          }
+          
+          return compraProcessed;
+        });
+        
+        console.log('Compras procesadas:', this.compras);
+      },
+      error => {
+        console.error('Error al obtener compras:', error);
+      }
+    );
+  }
+  
+  registrarCompra(): void {
+    // Verificar que proveedorId está correctamente asignado
+    console.log('Datos de compra a registrar:', this.nuevaCompra);
+    
+    // Comprobar si proveedorId es un número válido
+    if (!this.nuevaCompra.proveedorId || this.nuevaCompra.proveedorId <= 0) {
+      console.error('Error: proveedorId no es válido', this.nuevaCompra.proveedorId);
+      alert('Por favor seleccione un proveedor válido');
+      return;
+    }
+    
+    // Obtener el ID del usuario actual
+    this.nuevaCompra.usuarioId = this.authService.obtenerUsuarioId();
+    
+    // Calcular el total basado en los detalles
+    let totalCompra = 0;
+    this.nuevosDetalles.forEach(detalle => {
+      totalCompra += detalle.subtotal;
+    });
+    
+    this.nuevaCompra.importe_total = totalCompra;
+    
+    console.log('Enviando compra al servidor con estos datos:', JSON.stringify(this.nuevaCompra));
+    
+    this.comprasService.createCompra(this.nuevaCompra).subscribe(response => {
+      console.log('Respuesta del servidor al crear compra:', response);
+      
+      const compraId = response.data.id;
+      
+      // Crear los detalles asociados a la compra
+      if (this.nuevosDetalles.length > 0) {
+        const promesasDetalles = this.nuevosDetalles.map(detalle => {
+          detalle.compraId = compraId;
+          return this.detallePedidoCompraService.createDetallePedido(detalle).toPromise();
+        });
+        
+        Promise.all(promesasDetalles)
+          .then(() => {
+            this.obtenerCompras();
+            this.cerrarModalRegistroCompra();
+            this.limpiarFormularioCompra();
+          })
+          .catch(error => {
+            console.error('Error al guardar los detalles:', error);
+          });
+      } else {
+        this.obtenerCompras();
+        this.cerrarModalRegistroCompra();
+        this.limpiarFormularioCompra();
+      }
+    });
+  }
+  
+  actualizarCompra(): void {
+    if (!this.compraSeleccionada) return;
+    
+    const compraDTO: CompraDTO = {
+      fecha: this.compraSeleccionada.fecha,
+      estado: this.compraSeleccionada.estado,
+      importe_total: this.compraSeleccionada.importe_total,
+      importe_descuento: this.compraSeleccionada.importe_descuento,
+      proveedorId: this.compraSeleccionada.proveedorId,
+      usuarioId: this.compraSeleccionada.usuarioId,
+      observaciones: this.compraSeleccionada.observaciones
+    };
+    
+    const id = this.compraSeleccionada.id;
+    this.comprasService.updateCompra(id, compraDTO).subscribe(() => {
+      this.obtenerCompras();
+      this.cerrarModalEditarCompra();
+    });
+  }
+  
+  eliminarCompra(id: number): void {
+    if (confirm('¿Está seguro de eliminar esta compra?')) {
+      this.comprasService.deleteCompra(id).subscribe(() => {
+        this.obtenerCompras();
+      });
+    }
+  }
+  
+  verDetallesCompra(compra: Compra): void {
+    this.compraSeleccionada = compra;
+    this.detallePedidoCompraService.getDetallesPorCompra(compra.id).subscribe(detalles => {
+      this.detallesCompra = detalles;
+      this.abrirModalDetalleCompra();
+    });
+  }
+  
+  agregarDetalleANuevaCompra(): void {
+    this.nuevoDetalle.subtotal = this.nuevoDetalle.cantidad * this.nuevoDetalle.precioUnitario;
+    this.nuevosDetalles.push({...this.nuevoDetalle});
+    
+    // Recalcular el total de la compra
+    let total = 0;
+    this.nuevosDetalles.forEach(detalle => {
+      total += detalle.subtotal;
+    });
+    this.nuevaCompra.importe_total = total;
+    
+    this.limpiarFormularioDetalle();
+  }
+  
+  eliminarDetalleDeNuevaCompra(index: number): void {
+    this.nuevosDetalles.splice(index, 1);
+    
+    // Recalcular el total de la compra
+    let total = 0;
+    this.nuevosDetalles.forEach(detalle => {
+      total += detalle.subtotal;
+    });
+    this.nuevaCompra.importe_total = total;
+  }
+  
+  registrarDetalle(): void {
+    if (!this.compraSeleccionada) return;
+    
+    // Asegurarnos de tener una referencia segura a id
+    const compraId = this.compraSeleccionada.id;
+    
+    this.nuevoDetalle.compraId = compraId;
+    this.nuevoDetalle.subtotal = this.nuevoDetalle.cantidad * this.nuevoDetalle.precioUnitario;
+    
+    this.detallePedidoCompraService.createDetallePedido(this.nuevoDetalle).subscribe(() => {
+      // Actualizar el total de la compra
+      this.actualizarTotalCompra();
+      // Recargar los detalles
+      // Verificamos nuevamente que la compra seleccionada exista
+      if (this.compraSeleccionada) {
+        this.detallePedidoCompraService.getDetallesPorCompra(this.compraSeleccionada.id).subscribe(detalles => {
+          this.detallesCompra = detalles;
+        });
+      }
+      this.cerrarModalNuevoDetalle();
+      this.limpiarFormularioDetalle();
+    });
+  }
+  
+  eliminarDetalle(id: number): void {
+    if (confirm('¿Está seguro de eliminar este detalle?')) {
+      this.detallePedidoCompraService.deleteDetallePedido(id).subscribe(() => {
+        // Actualizar el total de la compra
+        this.actualizarTotalCompra();
+        // Recargar los detalles
+        if (this.compraSeleccionada) {
+          this.detallePedidoCompraService.getDetallesPorCompra(this.compraSeleccionada.id).subscribe(detalles => {
+            this.detallesCompra = detalles;
+          });
+        }
+      });
+    }
+  }
+  
+  actualizarTotalCompra(): void {
+    if (!this.compraSeleccionada) return;
+    
+    // Calcular el total a partir de los detalles
+    let total = 0;
+    this.detallesCompra.forEach(detalle => {
+      total += detalle.subtotal;
+    });
+    
+    // Guardar una referencia segura al ID
+    const compraId = this.compraSeleccionada.id;
+    
+    // Actualizar el campo importe_total de la compra
+    const compraActualizada: CompraDTO = {
+      fecha: this.compraSeleccionada.fecha,
+      estado: this.compraSeleccionada.estado,
+      importe_total: total,
+      importe_descuento: this.compraSeleccionada.importe_descuento,
+      proveedorId: this.compraSeleccionada.proveedorId,
+      usuarioId: this.compraSeleccionada.usuarioId,
+      observaciones: this.compraSeleccionada.observaciones
+    };
+    
+    this.comprasService.updateCompra(compraId, compraActualizada).subscribe(() => {
+      // Actualizar la compra seleccionada con el nuevo total
+      if (this.compraSeleccionada) {
+        this.compraSeleccionada.importe_total = total;
+      }
+      // Recargar todas las compras
+      this.obtenerCompras();
+    });
+  }
+  
+  filtrarPorEstado(): void {
+    if (!this.estadoSeleccionado) {
+      this.obtenerCompras();
+      return;
+    }
+    
+    this.comprasService.getComprasPorEstado(this.estadoSeleccionado).subscribe(data => {
+      this.compras = data;
+    });
+  }
+  
+  filtrarPorProveedor(): void {
+    if (!this.proveedorSeleccionadoId) {
+      this.obtenerCompras();
+      return;
+    }
+    
+    this.comprasService.getComprasPorProveedor(this.proveedorSeleccionadoId).subscribe(data => {
+      this.compras = data;
+    });
+  }
+  
+  cambiarEstadoCompra(compra: Compra, nuevoEstado: string): void {
+    const compraDTO: CompraDTO = {
+      fecha: compra.fecha,
+      estado: nuevoEstado,
+      importe_total: compra.importe_total,
+      importe_descuento: compra.importe_descuento,
+      proveedorId: compra.proveedorId,
+      usuarioId: compra.usuarioId,
+      observaciones: compra.observaciones
+    };
+    
+    this.comprasService.updateCompra(compra.id, compraDTO).subscribe(() => {
+      this.obtenerCompras();
+    });
+  }
+  
+  // Funciones para modales
+  abrirModalRegistroCompra(): void {
+    this.limpiarFormularioCompra();
+    this.isModalRegistroCompraOpen = true;
+  }
+  
+  cerrarModalRegistroCompra(): void {
+    this.isModalRegistroCompraOpen = false;
+    this.nuevosDetalles = [];
+  }
+  
+  abrirModalDetalleCompra(): void {
+    this.isModalDetalleCompraOpen = true;
+  }
+  
+  cerrarModalDetalleCompra(): void {
+    this.isModalDetalleCompraOpen = false;
+    this.compraSeleccionada = null;
+    this.detallesCompra = [];
+  }
+  
+  abrirModalNuevoDetalle(): void {
+    this.limpiarFormularioDetalle();
+    this.isModalNuevoDetalleOpen = true;
+  }
+  
+  cerrarModalNuevoDetalle(): void {
+    this.isModalNuevoDetalleOpen = false;
+  }
+  
+  abrirModalEditarCompra(compra: Compra): void {
+    this.compraSeleccionada = {...compra};
+    this.isModalEditarCompraOpen = true;
+  }
+  
+  cerrarModalEditarCompra(): void {
+    this.isModalEditarCompraOpen = false;
+    this.compraSeleccionada = null;
+  }
+  
+  // Funciones auxiliares
+  limpiarFormularioCompra(): void {
+    this.nuevaCompra = {
+      fecha: new Date().toISOString().split('T')[0],
+      estado: 'PENDIENTE',
+      importe_total: 0,
+      importe_descuento: 0,
+      proveedorId: 0,
+      usuarioId: this.authService.obtenerUsuarioId(),
+      observaciones: ''
+    };
+    this.nuevosDetalles = [];
+  }
+  
+  limpiarFormularioDetalle(): void {
+    const compraId = this.compraSeleccionada ? this.compraSeleccionada.id : 0;
+    
+    this.nuevoDetalle = {
+      compraId: compraId,
+      materialId: 0,
+      cantidad: 1,
+      precioUnitario: 0,
+      subtotal: 0
+    };
+  }
+  
+  calcularSubtotal(): void {
+    this.nuevoDetalle.subtotal = this.nuevoDetalle.cantidad * this.nuevoDetalle.precioUnitario;
+  }
+  
+  getNombreProveedor(proveedorId: number): string {
+    console.log('Buscando proveedor con ID:', proveedorId);
+    
+    // Si no hay proveedorId, devolvemos 'No especificado'
+    if (!proveedorId) {
+      return 'No especificado';
+    }
+    
+    // Si no hay proveedores cargados aún, devolvemos 'Cargando...'
+    if (!this.proveedores || this.proveedores.length === 0) {
+      return 'Cargando...';
+    }
+    
+    const proveedor = this.proveedores.find(p => p.id === proveedorId);
+    
+    // Log para depuración
+    if (!proveedor) {
+      console.warn(`No se encontró proveedor con ID ${proveedorId}. Proveedores disponibles:`, this.proveedores.map(p => ({ id: p.id, nombre: p.nombre })));
+    }
+    
+    return proveedor ? proveedor.nombre : 'No especificado';
+  }
+  
+  getNombreMaterial(materialId: number): string {
+    const material = this.materiales.find(m => m.id === materialId);
+    return material ? material.nombre : 'No especificado';
+  }
+  
+  obtenerColorEstado(estado: string): string {
+    switch (estado) {
+      case 'PENDIENTE':
+        return 'bg-yellow-100 text-yellow-800';
+      case 'APROBADO':
+        return 'bg-green-100 text-green-800';
+      case 'RECHAZADO':
+        return 'bg-red-100 text-red-800';
+      case 'COMPLETADO':
+        return 'bg-blue-100 text-blue-800';
+      default:
+        return 'bg-gray-100 text-gray-800';
+    }
+  }
+} 

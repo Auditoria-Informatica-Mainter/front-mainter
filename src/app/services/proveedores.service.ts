@@ -2,7 +2,7 @@ import { Injectable } from '@angular/core';
 import { environment } from '../enviroment';
 import { HttpClient } from '@angular/common/http';
 import { Observable } from 'rxjs';
-import { map } from 'rxjs';
+import { map, tap } from 'rxjs';
 
 @Injectable({
   providedIn: 'root'
@@ -11,10 +11,14 @@ export class ProveedoresService {
 
   private apiUrl = environment.apiUrl + 'api/proveedores';
 
-  constructor(private http: HttpClient) { }
+  constructor(private http: HttpClient) {
+    console.log('URL de API de proveedores:', this.apiUrl);
+  }
 
   getProveedores(): Observable<any[]> {
+    console.log('Llamando a getProveedores:', this.apiUrl);
     return this.http.get<any>(`${this.apiUrl}`).pipe(
+      tap(response => console.log('Respuesta completa de proveedores:', response)),
       map(response => response.data || [])
     );
   }
