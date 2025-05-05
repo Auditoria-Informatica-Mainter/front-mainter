@@ -605,7 +605,24 @@
             </thead>
             <tbody>
               <tr *ngFor="let detalle of detallesCompra" class="border-b hover:bg-gray-50 transition-colors">
-                <td class="px-4 py-3">{{ getNombreMaterial(detalle.materialId) }}</td>
+                <td class="px-4 py-3">
+                  <!-- Priorizar obtener el nombre del material del servicio -->
+                  <span class="font-medium">
+                    <ng-container *ngIf="detalle.materialId">
+                      {{ getNombreMaterial(detalle.materialId) }}
+                    </ng-container>
+                    
+                    <!-- Si no hay materialId, mostrar mensaje de error -->
+                    <ng-container *ngIf="!detalle.materialId">
+                      <span class="text-red-500">Material sin ID</span>
+                    </ng-container>
+                  </span>
+                  
+                  <!-- ID del material para referencia -->
+                  <small *ngIf="detalle.materialId" class="block text-xs text-gray-500">
+                    ID: {{ detalle.materialId }}
+                  </small>
+                </td>
                 <td class="px-4 py-3">{{ detalle.cantidad }}</td>
                 <td class="px-4 py-3">S/ {{ detalle.precioUnitario | number:'1.2-2' }}</td>
                 <td class="px-4 py-3 font-medium">S/ {{ detalle.subtotal | number:'1.2-2' }}</td>

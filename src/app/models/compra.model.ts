@@ -34,15 +34,24 @@ export interface DetallePedidoCompra {
   cantidad: number;
   precioUnitario: number;
   subtotal: number;
+  precio?: number;
+  importe?: number;
+  importe_desc?: number;
+  estado?: string;
   // Relaciones
   material?: any;
   compra?: Compra;
 }
 
 export interface DetallePedidoCompraDTO {
+  id?: number;
   compraId: number;
   materialId: number;
   cantidad: number;
   precioUnitario: number;
   subtotal: number;
+  precio?: number;
+  importe?: number;
+  importe_desc?: number;
+  estado?: string;
 } 

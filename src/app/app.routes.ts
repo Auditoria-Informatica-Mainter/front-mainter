@@ -11,7 +11,7 @@ import { SectorComponent } from './pages/sector/sector.component';
 import AlmacenComponent from './pages/almacen/almacen.component';
 import { MaterialesComponent } from './pages/materiales/materiales.component';
 import { ComprasComponent } from './pages/compras/compras.component';
-
+import { ReportesComponent } from './pages/reportes/reportes.component';
 import { BitacoraComponent } from './pages/bitacora/bitacora.component';
 import { ProveedorMaterialComponent } from './pages/proveedor-material/proveedor-material.component';
 
@@ -28,6 +28,7 @@ export const routes: Routes = [
   { path: 'sector', component: SectorComponent },
   { path: 'materiales', component: MaterialesComponent },
   { path: 'compras', component: ComprasComponent },
+  { path: 'reportes', component: ReportesComponent },
   { path: 'mrp', component: LandingPageComponent },
   { path: 'bitacoras', component: BitacoraComponent },
   // { path: '', redirectTo: 'login', pathMatch: 'full' },  //anterior pagina de inicio por defecto
