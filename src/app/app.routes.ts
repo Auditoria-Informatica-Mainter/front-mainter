@@ -12,6 +12,7 @@ import AlmacenComponent from './pages/almacen/almacen.component';
 import { MaterialesComponent } from './pages/materiales/materiales.component';
 
 import { BitacoraComponent } from './pages/bitacora/bitacora.component';
+import { ProveedorMaterialComponent } from './pages/proveedor-material/proveedor-material.component';
 
 export const routes: Routes = [
   { path: 'login', component: LoginComponent },
@@ -21,6 +22,7 @@ export const routes: Routes = [
   { path: 'categorias', component: CategoriasComponent },
   { path: 'subcategorias', component: SubcategoriasComponent },
   { path: 'proveedores', component: ProveedoresComponent },
+  { path: 'proveedorMaterial', component: ProveedorMaterialComponent },
   { path: 'almacen', component: AlmacenComponent },
   { path: 'sector', component: SectorComponent },
   { path: 'materiales', component: MaterialesComponent },
