@@ -14,7 +14,20 @@ export class AuthService {
   login(email: string, password: string): Observable<any> {
     return this.http.post<any>(`${this.apiUrl}auth/login`, { email, password });
   }
-
+  
+ // Método de registro (NUEVO)
+// En auth.service.ts
+registroAdmin(nombre: string, apellido: string, telefono: string, email: string, password: string) {
+  const usuarioDTO = {
+    nombre,
+    apellido,
+    telefono,
+    email,
+    password
+  };
+  
+  return this.http.post<any>(`${this.apiUrl}auth/registerAdmin`, usuarioDTO);
+}
   private token: string | null = null;
 
 

@@ -6,7 +6,7 @@ import Swal from 'sweetalert2'
 //import { error } from 'console';
 import { UserService } from '../../services/user.service';
 import { RoleService } from '../../services/rol.service';
-import { UsuarioDTO } from '../../models/usuario.model';
+
 
 
 @Component({

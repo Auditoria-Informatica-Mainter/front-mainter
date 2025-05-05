@@ -1,127 +1,351 @@
-<div class="mb-4 grid grid-cols-1 gap-6 xl:grid-cols-3">
+<div class="p-4 sm:ml-60 pt-20 bg-gray-50 min-h-screen">
+  <div class="mb-6">
+    <h1 class="text-2xl font-bold text-gray-800 mb-2">
+      Gestión de Subategorías
+    </h1>
+    <p class="text-gray-600">Administra las subcategorías del sistema</p>
+  </div>
+
+  <!-- Panel de filtros y acciones -->
+  <div class="bg-white rounded-lg shadow-md p-4 mb-6">
     <div
-        class="relative flex flex-col bg-clip-border rounded-xl bg-white text-gray-700 shadow-md overflow-hidden xl:col-span-2">
+      class="flex flex-col md:flex-row md:items-center justify-between gap-4"
+    >
+      <!-- Buscador -->
+      <div class="relative flex-grow max-w-md">
         <div
-            class="relative bg-clip-border rounded-xl overflow-hidden bg-transparent text-gray-700 shadow-none m-0 flex items-center justify-between p-6">
-            <div>
-                <h2
-                    class="block antialiased tracking-normal font-sans text-base font-bold leading-relaxed text-blue-gray-900 mb-1">
-                    Categorias</h2>
-
-            </div>
+          class="absolute inset-y-0 left-0 flex items-center pl-3 pointer-events-none"
+        >
+          <svg
+            class="w-4 h-4 text-gray-500"
+            aria-hidden="true"
+            xmlns="http://www.w3.org/2000/svg"
+            fill="none"
+            viewBox="0 0 20 20"
+          >
+            <path
+              stroke="currentColor"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+              stroke-width="2"
+              d="m19 19-4-4m0-7A7 7 0 1 1 1 8a7 7 0 0 1 14 0Z"
+            />
+          </svg>
         </div>
-        <div class="p-6 overflow-x-scroll px-0 pt-0 pb-2">
+        <input
+          type="text"
+          placeholder="Buscar categorías..."
+          class="block w-full p-2 pl-10 text-sm text-gray-900 border border-gray-300 rounded-lg bg-gray-50 focus:ring-blue-500 focus:border-blue-500"
+        />
+      </div>
 
-            <table class="w-full min-w-[640px] table-auto">
-                <thead>
-                    <tr>
-                        <th class="border-b border-blue-gray-50 py-3 px-6 text-left">
-                            <p class="block antialiased font-sans text-[11px] font-medium uppercase text-blue-gray-400">
-                                ID</p>
-                        </th>
-                        <th class="border-b border-blue-gray-50 py-3 px-6 text-left">
-                            <p class="block antialiased font-sans text-[11px] font-medium uppercase text-blue-gray-400">
-                                Nombre de la Categoria</p>
-                        </th>
-                        <th class="border-b border-blue-gray-50 py-3 px-6 text-left">
-                            <p class="block antialiased font-sans text-[11px] font-medium uppercase text-blue-gray-400">
-                                Acción</p>
-                        </th>
-                    </tr>
-                </thead>
-
-                <tbody>
-                    <tr *ngFor="let subcategoria of subcategorias">
-                        <td class="py-3 px-5 border-b border-blue-gray-50">
-                            <p class="block antialiased font-sans text-xs font-medium text-blue-gray-600">{{
-                                subcategoria.id
-                                }}
-                            </p>
-                        </td>
-                        <td class="py-3 px-5 border-b border-blue-gray-50">
-                            <p class="block antialiased font-sans text-xs font-medium text-blue-gray-600">{{
-                                subcategoria.nombre }}</p>
-                        </td>
-                        <td class="py-3 px-5 border-b border-blue-gray-50">
-                            <svg (click)="openModalToUpdateSubcategoria(subcategoria)"
-                                xmlns="http://www.w3.org/2000/svg" height="24px" viewBox="0 -960 960 960" width="24px"
-                                fill="#008080">
-                                <path
-                                    d="M560-120v-123l221-220q9-9 20-13t22-4q12 0 23 4.5t20 13.5l37 37q8 9 12.5 20t4.5 22q0 11-4 22.5T903-340L683-120H560Zm-400-40v-112q0-34 17.5-62.5T224-378q62-31 126-46.5T480-440q37 0 73 4.5t72 14.5L480-276v116H160Zm663-184 37-39-37-37-38 38 38 38ZM480-480q-66 0-113-47t-47-113q0-66 47-113t113-47q66 0 113 47t47 113q0 66-47 113t-113 47Z" />
-                            </svg>
-                            <svg (click)="deleteSubcategoria(subcategoria)" xmlns="http://www.w3.org/2000/svg"
-                                height="24px" viewBox="0 -960 960 960" width="24px" fill="#dc4340">
-                                <path
-                                    d="m696-440-56-56 83-84-83-83 56-57 84 84 83-84 57 57-84 83 84 84-57 56-83-83-84 83Zm-336-40q-66 0-113-47t-47-113q0-66 47-113t113-47q66 0 113 47t47 113q0 66-47 113t-113 47ZM40-160v-112q0-34 17.5-62.5T104-378q62-31 126-46.5T360-440q66 0 130 15.5T616-378q29 15 46.5 43.5T680-272v112H40Z" />
-                            </svg>
-                        </td>
-                    </tr>
-                </tbody>
-
-            </table>
-            <!-- BOTON PARA REGISTRAR NUEVO -->
-            <button (click)="activeRegisterForm()" type="button"
-                class="appearance-none block bg-blue-700 text-gray-100 font-bold border border-gray-200 rounded-lg py-3 px-3 leading-tight hover:bg-blue-600 focus:outline-none focus:bg-white focus:border-gray-500">Agregar
-                Categoria</button>
-        </div>
+      <!-- Botón para registrar usuario -->
+      <button
+        (click)="activeRegisterForm()"
+        type="button"
+        class="flex items-center justify-center text-white bg-blue-600 hover:bg-blue-700 focus:ring-4 focus:ring-blue-300 font-medium rounded-lg text-sm px-4 py-2 transition duration-150 ease-in-out"
+      >
+        <svg
+          class="w-4 h-4 mr-2"
+          fill="none"
+          stroke="currentColor"
+          viewBox="0 0 24 24"
+        >
+          <path
+            stroke-linecap="round"
+            stroke-linejoin="round"
+            stroke-width="2"
+            d="M12 4v16m8-8H4"
+          ></path>
+        </svg>
+        Nueva Subcategoría
+      </button>
     </div>
+  </div>
+
+  <!-- Tabla de usuarios -->
+  <div class="bg-white rounded-lg shadow-md overflow-hidden">
+    <div class="overflow-x-auto">
+      <table class="w-full text-sm text-left text-gray-500">
+        <thead class="text-xs text-gray-700 uppercase bg-gray-100">
+          <tr>
+            <th scope="col" class="px-6 py-3">ID</th>
+            <th scope="col" class="px-6 py-3">Nombre</th>
+            <th scope="col" class="px-6 py-3">Descripción</th>
+            <th scope="col" class="px-6 py-3">Acciones</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr
+            *ngFor="let subcategoria of subcategorias"
+            class="border-b hover:bg-gray-50 transition-colors"
+          >
+            <td class="px-6 py-4 font-medium text-gray-900 whitespace-nowrap">
+              {{ subcategoria.id }}
+            </td>
+            <td class="px-6 py-4">{{ subcategoria.nombre }}</td>
+            <td class="px-6 py-4">{{ subcategoria.descripcion }}</td>
+            <td class="px-6 py-4">
+              <div class="flex space-x-2">
+                <button
+                  (click)="openModalToUpdateSubcategoria(subcategoria)"
+                  class="text-blue-600 hover:text-blue-900"
+                  title="Editar usuario"
+                >
+                  <svg
+                    xmlns="http://www.w3.org/2000/svg"
+                    class="h-5 w-5"
+                    fill="none"
+                    viewBox="0 0 24 24"
+                    stroke="currentColor"
+                  >
+                    <path
+                      stroke-linecap="round"
+                      stroke-linejoin="round"
+                      stroke-width="2"
+                      d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"
+                    />
+                  </svg>
+                </button>
+                <button
+                  (click)="deleteSubcategoria(subcategoria)"
+                  class="text-red-600 hover:text-red-900"
+                  title="Eliminar usuario"
+                >
+                  <svg
+                    xmlns="http://www.w3.org/2000/svg"
+                    class="h-5 w-5"
+                    fill="none"
+                    viewBox="0 0 24 24"
+                    stroke="currentColor"
+                  >
+                    <path
+                      stroke-linecap="round"
+                      stroke-linejoin="round"
+                      stroke-width="2"
+                      d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"
+                    />
+                  </svg>
+                </button>
+              </div>
+            </td>
+          </tr>
+          <!-- Estado vacío -->
+          <tr *ngIf="subcategorias.length === 0">
+            <td colspan="8" class="px-6 py-12 text-center text-gray-500">
+              <svg
+                class="mx-auto h-12 w-12 text-gray-400"
+                fill="none"
+                viewBox="0 0 24 24"
+                stroke="currentColor"
+              >
+                <path
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                  stroke-width="2"
+                  d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z"
+                ></path>
+              </svg>
+              <h3 class="mt-2 text-sm font-semibold text-gray-900">
+                No hay subcategorías
+              </h3>
+              <p class="mt-1 text-sm text-gray-500">
+                Comienza por crear una nueva subcategoría.
+              </p>
+              <div class="mt-6">
+                <button
+                  (click)="activeRegisterForm()"
+                  type="button"
+                  class="inline-flex items-center px-4 py-2 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
+                >
+                  <svg
+                    class="-ml-1 mr-2 h-5 w-5"
+                    fill="none"
+                    viewBox="0 0 24 24"
+                    stroke="currentColor"
+                  >
+                    <path
+                      stroke-linecap="round"
+                      stroke-linejoin="round"
+                      stroke-width="2"
+                      d="M12 4v16m8-8H4"
+                    ></path>
+                  </svg>
+                  Nueva Subategoría
+                </button>
+              </div>
+            </td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
 </div>
 
-<!-- MODAL PARA REGISTRAR -->
-<div *ngIf="isModalRegisterSubcategoriaOpen"
-    class="fixed inset-0 bg-gray-600 bg-opacity-50 flex justify-center items-center z-50">
-    <div class="bg-white rounded-lg shadow-lg w-11/12 sm:w-96 p-6">
-        <div class="flex justify-between items-center mb-4">
-            <h2 class="text-xl font-bold text-blue-gray-900">Registrar Categoria</h2>
-            <button (click)="closeRegisterSubcategoriaModal()" id="closeModalBtn"
-                class="text-gray-600 text-2xl font-semibold hover:text-gray-900">&times;</button>
-        </div>
-
-        <form (submit)="createSubcategoria()" class="space-y-4">
-            <div>
-                <label for="categoria" class="block text-sm font-medium text-gray-700">Nombre de la Categoria</label>
-                <input type="text" id="categoria" [(ngModel)]="nuevaSubcategoria.nombre" name="categoria"
-                    class="w-full mt-1 px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-600"
-                    required />
-            </div>
-            <div class="flex justify-between mt-6">
-                <button (click)="closeRegisterSubcategoriaModal()" type="button" id="closeModalBtn"
-                    class="bg-gray-500 text-white px-4 py-2 rounded-lg hover:bg-gray-600 focus:outline-none">Cancelar</button>
-                <button type="submit"
-                    class="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-500 focus:outline-none">Registrar</button>
-            </div>
-        </form>
+<!-- Modal para registrar -->
+<div
+  *ngIf="isModalRegisterSubcategoriaOpen"
+  class="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4"
+>
+  <div
+    class="bg-white rounded-lg shadow-xl w-full max-w-md mx-auto overflow-hidden"
+  >
+    <div class="flex items-center justify-between px-6 py-4 bg-blue-600">
+      <h3 class="text-lg font-medium text-white">
+        Registrar nueva subcategoria
+      </h3>
+      <button
+        (click)="closeRegisterSubcategoriaModal()"
+        class="text-white hover:text-gray-200"
+      >
+        <svg
+          class="h-6 w-6"
+          fill="none"
+          viewBox="0 0 24 24"
+          stroke="currentColor"
+        >
+          <path
+            stroke-linecap="round"
+            stroke-linejoin="round"
+            stroke-width="2"
+            d="M6 18L18 6M6 6l12 12"
+          />
+        </svg>
+      </button>
     </div>
+
+    <form (submit)="createSubcategoria()" class="p-6">
+      <div class="grid grid-cols-1 gap-4 sm:grid-cols-2">
+        <div>
+          <label
+            for="subcategoria"
+            class="block text-sm font-medium text-gray-700"
+            >Nombre *</label
+          >
+          <input
+            type="text"
+            id="subcategoria"
+            [(ngModel)]="nuevaSubcategoria.nombre"
+            name="nombre"
+            required
+            class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 text-sm"
+          />
+        </div>
+        <div>
+          <label
+            for="descripcion"
+            class="block text-sm font-medium text-gray-700"
+            >Descripcion *</label
+          >
+          <input
+            type="text"
+            id="descripcion"
+            [(ngModel)]="nuevaSubcategoria.descripcion"
+            name="descripcion"
+            required
+            class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 text-sm"
+          />
+        </div>
+      </div>
+
+      <div class="mt-6 flex justify-end space-x-3">
+        <button
+          type="button"
+          (click)="closeRegisterSubcategoriaModal()"
+          class="px-4 py-2 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
+        >
+          Cancelar
+        </button>
+        <button
+          type="submit"
+          class="px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
+        >
+          Registrar
+        </button>
+      </div>
+    </form>
+  </div>
 </div>
-<!-- VENTANA EMERGENTE PARA ACTUALIZAR LOS DATOS DE UNO -->
-<div *ngIf="isModalUpdateSubcategoriaOpen"
-    class="fixed inset-0 bg-gray-600 bg-opacity-50 flex justify-center items-center z-50">
-    <div class="bg-white rounded-lg shadow-lg w-11/12 sm:w-96 p-6">
-        <div class="flex justify-between items-center mb-4">
-            <h2 class="text-xl font-bold text-blue-gray-900">Actualizar Usuario</h2>
-            <button (click)="closeUpdateSubcategoriaModal()" id="closeModalBtn"
-                class="text-gray-600 text-2xl font-semibold hover:text-gray-900">&times;</button>
-        </div>
 
-        <form (submit)="updateSubcategoria()" class="space-y-4">
-
-            <div>
-                <label for="categoria" class="block text-sm font-medium text-gray-700">Nombre de la Categoria</label>
-                <input type="text" id="updateNombre" [(ngModel)]="subcategoriaUpdate" name="updateNombre"
-                    class="w-full mt-1 px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-600"
-                    required />
-            </div>
-
-            <div class="flex justify-between mt-6">
-                <button type="button" (click)="closeUpdateSubcategoriaModal()"
-                    class="bg-gray-500 text-white px-4 py-2 rounded-lg hover:bg-gray-600 focus:outline-none">
-                    Cancelar
-                </button>
-                <button type="submit"
-                    class="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-500 focus:outline-none">
-                    Actualizar
-                </button>
-            </div>
-        </form>
+<!-- Modal para actualizar usuario -->
+<div
+  *ngIf="isModalUpdateSubcategoriaOpen"
+  class="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4"
+>
+  <div
+    class="bg-white rounded-lg shadow-xl w-full max-w-md mx-auto overflow-hidden"
+  >
+    <div class="flex items-center justify-between px-6 py-4 bg-blue-600">
+      <h3 class="text-lg font-medium text-white">Actualizar</h3>
+      <button
+        (click)="closeUpdateSubcategoriaModal()"
+        class="text-white hover:text-gray-200"
+      >
+        <svg
+          class="h-6 w-6"
+          fill="none"
+          viewBox="0 0 24 24"
+          stroke="currentColor"
+        >
+          <path
+            stroke-linecap="round"
+            stroke-linejoin="round"
+            stroke-width="2"
+            d="M6 18L18 6M6 6l12 12"
+          />
+        </svg>
+      </button>
     </div>
+
+    <form (submit)="updateSubcategoria()" class="p-6">
+      <div class="grid grid-cols-1 gap-4 sm:grid-cols-2">
+        <div>
+          <label
+            for="subcategoriaUpdate"
+            class="block text-sm font-medium text-gray-700"
+            >Nombre *</label
+          >
+          <input
+            type="text"
+            id="subcategoriaUpdate"
+            [(ngModel)]="subcategoriaUpdate"
+            name="subcategoriaUpdate"
+            required
+            class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 text-sm"
+          />
+        </div>
+        <div>
+          <label
+            for="descripcionUpdate"
+            class="block text-sm font-medium text-gray-700"
+            >Descripcion *</label
+          >
+          <input
+            type="text"
+            id="descripcionUpdate"
+            [(ngModel)]="subcategoriaDescripcionUpdate"
+            name="descripcionUpdate"
+            required
+            class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 text-sm"
+          />
+        </div>
+      </div>
+
+      <div class="mt-6 flex justify-end space-x-3">
+        <button
+          type="button"
+          (click)="closeUpdateSubcategoriaModal()"
+          class="px-4 py-2 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
+        >
+          Cancelar
+        </button>
+        <button
+          type="submit"
+          class="px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
+        >
+          Actualizar
+        </button>
+      </div>
+    </form>
+  </div>
 </div>
