@@ -4,6 +4,10 @@ import { FormsModule } from '@angular/forms';
 import { ComprasService } from '../../services/compras.service';
 import { MaterialesService } from '../../services/materiales.service';
 import { ProveedoresService } from '../../services/proveedores.service';
+import jsPDF from 'jspdf';
+import autoTable from 'jspdf-autotable';
+import * as XLSX from 'xlsx';
+import { saveAs } from 'file-saver';
 
 @Component({
   selector: 'app-reportes',
@@ -393,12 +397,14 @@ export class ReportesComponent implements OnInit {
         console.log(`Filtrado por búsqueda: ${materialesFiltrados.length} resultados`);
       }
       
-      // Filtramos los materiales que están por debajo del stock mínimo
+      // Filtramos los materiales que tienen un stock igual o menor al stock mínimo especificado
       if (this.stockMinimo > 0) {
         materialesFiltrados = materialesFiltrados.filter(material => {
           // Convertir a número para asegurar una comparación adecuada
           const stockActual = parseFloat(String(material.stockActual));
           const stockMinimo = parseFloat(String(this.stockMinimo));
+          
+          // La condición es: stockActual <= stockMinimo (igual o menor al valor introducido)
           const incluir = !isNaN(stockActual) && !isNaN(stockMinimo) && stockActual <= stockMinimo;
           
           // Log detallado para algunos materiales
@@ -454,23 +460,180 @@ export class ReportesComponent implements OnInit {
   }
   
   descargarReporteComprasPDF(): void {
-    // Aquí implementarías la lógica para descargar el reporte en PDF
-    alert('Funcionalidad de descarga en PDF en desarrollo...');
+    try {
+      // Crear un nuevo documento PDF en formato a4
+      const doc = new jsPDF('p', 'mm', 'a4');
+      const pageWidth = doc.internal.pageSize.width;
+      
+      // Añadir título
+      doc.setFontSize(18);
+      doc.text('Reporte de Compras', pageWidth / 2, 15, { align: 'center' });
+      
+      // Añadir fecha de generación
+      doc.setFontSize(10);
+      const fechaActual = new Date().toLocaleDateString('es-ES');
+      doc.text(`Fecha de generación: ${fechaActual}`, pageWidth / 2, 22, { align: 'center' });
+      
+      // Información de filtros
+      doc.setFontSize(12);
+      const filtros = [
+        `Período: ${this.fechaDesdeCompras} al ${this.fechaHastaCompras}`,
+        `Proveedor: ${this.proveedorSeleccionadoId === 0 ? 'Todos' : this.getNombreProveedor(this.proveedorSeleccionadoId)}`,
+        `Estado: ${this.estadoSeleccionado || 'Todos'}`
+      ];
+      doc.text(filtros, 14, 30);
+      
+      // Preparar los datos para la tabla
+      const tableData = this.compras.map(compra => [
+        compra.id.toString(),
+        new Date(compra.fecha).toLocaleDateString('es-ES'),
+        this.obtenerNombreProveedor(compra),
+        compra.estado,
+        `BS ${this.getNumericValue(compra.importe_total, 2).toFixed(2)}`
+      ]);
+      
+      // Añadir fila de total al final
+      tableData.push([
+        '', '', '', 'Total:',
+        `BS ${this.calcularTotalCompras().toFixed(2)}`
+      ]);
+      
+      // Configurar y generar la tabla
+      autoTable(doc, {
+        head: [['ID', 'Fecha', 'Proveedor', 'Estado', 'Total']],
+        body: tableData,
+        startY: 40,
+        theme: 'grid',
+        styles: { fontSize: 9, cellPadding: 2 },
+        headStyles: { fillColor: [66, 66, 66] },
+        footStyles: { fillColor: [239, 239, 239], textColor: [0, 0, 0], fontStyle: 'bold' },
+        alternateRowStyles: { fillColor: [245, 245, 245] }
+      });
+      
+      // Guardar el PDF con un nombre específico
+      doc.save(`Reporte_Compras_${fechaActual.replace(/\//g, '-')}.pdf`);
+    } catch (error) {
+      console.error('Error al generar PDF de compras:', error);
+      alert('Error al generar el PDF. Por favor, intente nuevamente.');
+    }
   }
   
   descargarReporteComprasExcel(): void {
-    // Aquí implementarías la lógica para descargar el reporte en Excel
-    alert('Funcionalidad de descarga en Excel en desarrollo...');
+    try {
+      // Preparar los datos para el Excel
+      const excelData = this.compras.map(compra => ({
+        'ID': compra.id,
+        'Fecha': new Date(compra.fecha).toLocaleDateString('es-ES'),
+        'Proveedor': this.obtenerNombreProveedor(compra),
+        'Estado': compra.estado,
+        'Total (BS)': this.getNumericValue(compra.importe_total, 2)
+      }));
+      
+      // Añadir una fila con el total
+      excelData.push({
+        'ID': '',
+        'Fecha': '',
+        'Proveedor': '',
+        'Estado': 'TOTAL',
+        'Total (BS)': this.calcularTotalCompras()
+      });
+      
+      // Convertir los datos a una hoja de Excel
+      const worksheet = XLSX.utils.json_to_sheet(excelData);
+      
+      // Crear un libro de trabajo y añadir la hoja
+      const workbook = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(workbook, worksheet, 'Reporte de Compras');
+      
+      // Guardar el archivo
+      const fechaActual = new Date().toLocaleDateString('es-ES').replace(/\//g, '-');
+      const excelBuffer = XLSX.write(workbook, { bookType: 'xlsx', type: 'array' });
+      const data = new Blob([excelBuffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+      saveAs(data, `Reporte_Compras_${fechaActual}.xlsx`);
+    } catch (error) {
+      console.error('Error al generar Excel de compras:', error);
+      alert('Error al generar el Excel. Por favor, intente nuevamente.');
+    }
   }
   
   descargarReporteProductosPDF(): void {
-    // Aquí implementarías la lógica para descargar el reporte en PDF
-    alert('Funcionalidad de descarga en PDF en desarrollo...');
+    try {
+      // Crear un nuevo documento PDF en formato a4
+      const doc = new jsPDF('p', 'mm', 'a4');
+      const pageWidth = doc.internal.pageSize.width;
+      
+      // Añadir título
+      doc.setFontSize(18);
+      doc.text('Reporte de Productos', pageWidth / 2, 15, { align: 'center' });
+      
+      // Añadir fecha de generación
+      doc.setFontSize(10);
+      const fechaActual = new Date().toLocaleDateString('es-ES');
+      doc.text(`Fecha de generación: ${fechaActual}`, pageWidth / 2, 22, { align: 'center' });
+      
+      // Información de filtros
+      doc.setFontSize(12);
+      const filtros = [
+        `Búsqueda: ${this.busquedaProducto || 'Ninguna'}`,
+        `Stock máximo mostrado: ${this.stockMinimo || 'Sin límite'} (productos con stock igual o menor)`
+      ];
+      doc.text(filtros, 14, 30);
+      
+      // Preparar los datos para la tabla
+      const tableData = this.materiales.map(material => [
+        material.id.toString(),
+        material.nombre,
+        material.descripcion ? (material.descripcion.length > 30 ? material.descripcion.substring(0, 30) + '...' : material.descripcion) : 'Sin descripción',
+        this.getNumericValue(material.stockActual, 0).toString(),
+        this.getNumericValue(material.stockMinimo, 0).toString()
+      ]);
+      
+      // Configurar y generar la tabla
+      autoTable(doc, {
+        head: [['ID', 'Nombre', 'Descripción', 'Stock Actual', 'Stock Mínimo']],
+        body: tableData,
+        startY: 40,
+        theme: 'grid',
+        styles: { fontSize: 9, cellPadding: 2 },
+        headStyles: { fillColor: [66, 66, 66] },
+        alternateRowStyles: { fillColor: [245, 245, 245] }
+      });
+      
+      // Guardar el PDF con un nombre específico
+      doc.save(`Reporte_Productos_${fechaActual.replace(/\//g, '-')}.pdf`);
+    } catch (error) {
+      console.error('Error al generar PDF de productos:', error);
+      alert('Error al generar el PDF. Por favor, intente nuevamente.');
+    }
   }
   
   descargarReporteProductosExcel(): void {
-    // Aquí implementarías la lógica para descargar el reporte en Excel
-    alert('Funcionalidad de descarga en Excel en desarrollo...');
+    try {
+      // Preparar los datos para el Excel
+      const excelData = this.materiales.map(material => ({
+        'ID': material.id,
+        'Nombre': material.nombre,
+        'Descripción': material.descripcion || 'Sin descripción',
+        'Stock Actual': this.getNumericValue(material.stockActual, 0),
+        'Stock Mínimo': this.getNumericValue(material.stockMinimo, 0)
+      }));
+      
+      // Convertir los datos a una hoja de Excel
+      const worksheet = XLSX.utils.json_to_sheet(excelData);
+      
+      // Crear un libro de trabajo y añadir la hoja
+      const workbook = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(workbook, worksheet, 'Reporte de Productos');
+      
+      // Guardar el archivo
+      const fechaActual = new Date().toLocaleDateString('es-ES').replace(/\//g, '-');
+      const excelBuffer = XLSX.write(workbook, { bookType: 'xlsx', type: 'array' });
+      const data = new Blob([excelBuffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+      saveAs(data, `Reporte_Productos_${fechaActual}.xlsx`);
+    } catch (error) {
+      console.error('Error al generar Excel de productos:', error);
+      alert('Error al generar el Excel. Por favor, intente nuevamente.');
+    }
   }
   
   calcularTotalCompras(): number {

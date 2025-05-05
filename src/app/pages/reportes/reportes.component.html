@@ -147,7 +147,7 @@
                 {{ compra.estado }}
               </span>
             </td>
-            <td class="px-4 py-3 text-right font-medium">S/ {{ compra.importe_total | number:'1.2-2' }}</td>
+            <td class="px-4 py-3 text-right font-medium">BS {{ compra.importe_total | number:'1.2-2' }}</td>
           </tr>
           
           <!-- Estado vacío -->
@@ -160,7 +160,7 @@
         <tfoot *ngIf="compras.length > 0">
           <tr class="font-semibold text-gray-900 border-t">
             <td colspan="4" class="px-4 py-3 text-right">Total:</td>
-            <td class="px-4 py-3 text-right">S/ {{ calcularTotalCompras() | number:'1.2-2' }}</td>
+            <td class="px-4 py-3 text-right">BS {{ calcularTotalCompras() | number:'1.2-2' }}</td>
           </tr>
         </tfoot>
       </table>
