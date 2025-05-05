@@ -11,6 +11,7 @@ import { SectorComponent } from './pages/sector/sector.component';
 import AlmacenComponent from './pages/almacen/almacen.component';
 import { MaterialesComponent } from './pages/materiales/materiales.component';
 
+import { BitacoraComponent } from './pages/bitacora/bitacora.component';
 
 export const routes: Routes = [
   { path: 'login', component: LoginComponent },
@@ -24,8 +25,9 @@ export const routes: Routes = [
   { path: 'sector', component: SectorComponent },
   { path: 'materiales', component: MaterialesComponent },
   { path: 'mrp', component: LandingPageComponent },
+  { path: 'bitacoras', component: BitacoraComponent },
   // { path: '', redirectTo: 'login', pathMatch: 'full' },  //anterior pagina de inicio por defecto
   { path: '', redirectTo: 'mrp', pathMatch: 'full' },
   { path: '**', redirectTo: '/mrp' },
-  
+
 ];
