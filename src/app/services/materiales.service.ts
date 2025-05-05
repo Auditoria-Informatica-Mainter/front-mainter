@@ -46,7 +46,11 @@ export class MaterialesService {
   }
 
   buscarPorNombre(nombre: string): Observable<any> {
-    return this.http.get<any>(`${this.apiUrl}/nombre/${nombre}`);
+    return this.http.get<any>(`${this.apiUrl}/nombre/${nombre}`).pipe(
+      map(response => {
+        return response.data ? [response.data] : [];
+      })
+    );
   }
 
   getPorProveedor(proveedorId: number): Observable<any> {

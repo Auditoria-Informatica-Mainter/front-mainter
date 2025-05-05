@@ -67,8 +67,15 @@ export default class CategoriasComponent implements OnInit {
         Swal.fire("Categoría registrada", "", "success");
         this.closeRegisterCategoriaModal();
       },
+      // error: (err) => {
+      //   console.error('Error al registrar categoría', err);
+      //   Swal.fire("Error al registrar la categoría", "", "error");
+      // }
       error: (err) => {
-        console.error('Error al registrar categoría', err);
+        console.error('Error completo:', err);
+        console.error('Status:', err.status);
+        console.error('Mensaje:', err.message);
+        console.error('Detalle:', err.error);
         Swal.fire("Error al registrar la categoría", "", "error");
       }
     });

@@ -4,6 +4,7 @@ import { FormsModule } from '@angular/forms';
 import { MaterialesService } from '../../services/materiales.service';
 import { SectorService } from '../../services/sector.service';
 import { CategoriasService } from '../../services/categorias.service';
+import { Subject, debounceTime, switchMap } from 'rxjs';
 
 @Component({
   selector: 'app-materiales',
@@ -17,7 +18,7 @@ export class MaterialesComponent implements OnInit {
   categorias: any[] = [];
 
   materialSeleccionado: any = null;
-  XnuevoMaterial: any = {
+  nuevoMaterial: any = {
     nombre: '',
     descripcion: '',
     unidadMedida: '',
@@ -28,7 +29,7 @@ export class MaterialesComponent implements OnInit {
     sectorId: null
   };
 
-  nuevoMaterial = {
+  xnuevoMaterial = {
     nombre: '',
     stockActual: 0,
     unidadMedida: '',
@@ -38,6 +39,7 @@ export class MaterialesComponent implements OnInit {
     imagen: ''
   };
   busquedaNombre: string = '';
+  private busquedaNombreSubject = new Subject<string>();
   proveedorId: number = 0;
   actualizacionStock: { id: number, cantidad: number } = { id: 0, cantidad: 0 };
   actualizacionImagen: { id: number, imagen: string } = { id: 0, imagen: '' };
@@ -56,6 +58,22 @@ export class MaterialesComponent implements OnInit {
     this.obtenerMateriales();
     this.obtenerSectores();
     this.obtenerCategorias();
+    this.busquedaNombreSubject.pipe(
+      debounceTime(300), // Espera 3s después de escribir
+      switchMap((nombre: string) => {
+        if (nombre.trim() === '') {
+          return this.materialesService.getMateriales(); // Devuelve todos los materiales si está vacío
+        } else {
+          return this.materialesService.buscarPorNombre(nombre); // Busca por nombre si no está vacío
+        }
+      })
+    ).subscribe(response => {
+      if (response && response.data) {
+        this.materiales = Array.isArray(response.data) ? response.data : [response.data];
+      } else {
+        this.materiales = [];
+      }
+    });
   }
 
   obtenerMateriales() {
@@ -63,7 +81,10 @@ export class MaterialesComponent implements OnInit {
   }
 
   obtenerSectores() {
-    this.sectorService.getSectores().subscribe(data => this.sectores = data);
+    this.sectorService.getSectores().subscribe(response => {
+      this.sectores = response.data;  //Extrae el array desde .data
+      console.log(this.sectores);
+    });
   }
 
   obtenerCategorias() {
@@ -102,10 +123,18 @@ export class MaterialesComponent implements OnInit {
     this.materialesService.deleteMaterial(id).subscribe(() => this.obtenerMateriales());
   }
 
-  buscarPorNombre() {
-    this.materialesService.buscarPorNombre(this.busquedaNombre).subscribe(data => this.materiales = data);
+  onInputBuscarNombre(event: string): void {
+    if (event=="") {
+      this.obtenerMateriales();
+    }
+    this.materialesService.buscarPorNombre(event).subscribe((data) => {
+      console.log("Datos recibidos de la búsqueda:", data);
+      this.materiales = data;
+    }, (error) => {
+      console.error("Error buscando materiales:", error);
+    });
   }
-
+  
   buscarPorProveedor() {
     this.materialesService.getPorProveedor(this.proveedorId).subscribe(data => this.materiales = data);
   }
@@ -159,7 +188,8 @@ export class MaterialesComponent implements OnInit {
       stockMinimo: 0,
       categoriaId: null,
       descripcion: '',
-      imagen: ''
+      imagen: '',
+      sectorId: null
     };
   }
 }
