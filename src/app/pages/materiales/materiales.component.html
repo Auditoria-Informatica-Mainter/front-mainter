@@ -34,7 +34,8 @@
         </div>
         <input
           type="text"
-          [(ngModel)]="buscarPorNombre"
+          [ngModel]="busquedaNombre"
+          (ngModelChange)="onInputBuscarNombre($event)"
           placeholder="Buscar materiales..."
           class="block w-full p-2 pl-10 text-sm text-gray-900 border border-gray-300 rounded-lg bg-gray-50 focus:ring-blue-500 focus:border-blue-500"
         />
@@ -72,10 +73,12 @@
           <tr>
             <th class="px-6 py-3">ID</th>
             <th class="px-6 py-3">Nombre</th>
-            <th class="px-6 py-3">Unidad</th>
-            <th class="px-6 py-3">Precio</th>
-            <th class="px-6 py-3">Stock</th>
+            <th class="px-6 py-3">Descripcion</th>
+            <th class="px-6 py-3">Unidad de Medida</th>
+            <th class="px-6 py-3">Stock Actual</th>
+            <th class="px-6 py-3">Stock Minimo</th>
             <th class="px-6 py-3">Sector</th>
+            <th class="px-6 py-3">Categoria</th>
             <th class="px-6 py-3">Acciones</th>
           </tr>
         </thead>
@@ -86,12 +89,14 @@
           >
             <td class="px-6 py-4 font-medium text-gray-900">{{ mat.id }}</td>
             <td class="px-6 py-4">{{ mat.nombre }}</td>
-            <td class="px-6 py-4">{{ mat.unidad }}</td>
-            <td class="px-6 py-4">
-              S/ {{ mat.precioUnitario | number : "1.2-2" }}
-            </td>
-            <td class="px-6 py-4">{{ mat.stock }}</td>
+            <td class="px-6 py-4">{{ mat.descripcion }}</td>
+            <td class="px-6 py-4">{{ mat.unidadMedida }}</td>
+            <td class="px-6 py-4">{{ mat.stockActual }}</td>
+            <td class="px-6 py-4">{{ mat.stockMinimo }}</td>
             <td class="px-6 py-4">{{ mat.sector?.nombre || "Sin sector" }}</td>
+            <td class="px-6 py-4">
+              {{ mat.categoria?.nombre || "Sin Categoria" }}
+            </td>
             <td class="px-6 py-4">
               <div class="flex space-x-2">
                 <button
@@ -189,7 +194,7 @@
 </div>
 <!-- MODAL PARA REGISTRAR -->
 <div
-  *ngIf="activeRegisterMaterialForm"
+  *ngIf="isModalRegisterMaterialesOpen"
   class="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4"
 >
   <div
@@ -327,13 +332,13 @@
         </div>
 
         <!-- SECTOR OCULTO PARA EL REGISTRO -->
-        <!-- <div class="sm:col-span-2">
+        <div class="sm:col-span-2">
           <label for="sector" class="block text-sm font-medium text-gray-700"
             >Sector *</label
           >
           <select
             id="sector"
-            [(ngModel)]="nuevoMaterial.sector.id"
+            [(ngModel)]="nuevoMaterial.sectorId"
             name="sector"
             required
             class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 text-sm"
@@ -343,7 +348,7 @@
               {{ sector.nombre }}
             </option>
           </select>
-        </div> -->
+        </div>
       </div>
 
       <div class="mt-6 flex justify-end space-x-3">
@@ -364,6 +369,7 @@
     </form>
   </div>
 </div>
+
 <!-- MODAL PARA ACTUALIZAR -->
 <div
   *ngIf="isModalUpdateMaterialesOpen"
