@@ -25,7 +25,7 @@ export class RegisterAdminComponent {
   onSubmit() {
     // Validar que las contraseñas coincidan
     if (this.password !== this.confirmPassword) {
-      alert('Las contraseñas no coinciden');
+      Swal.fire("Error", "Las contraseñas no coinciden", "error");
       return;
     }
 
