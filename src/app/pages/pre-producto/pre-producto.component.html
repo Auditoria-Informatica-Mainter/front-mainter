@@ -1,0 +1,194 @@
+<div class="p-4 sm:ml-60 pt-20 bg-gray-50 min-h-screen">
+  <div class="mb-6">
+    <h1 class="text-2xl font-bold text-gray-800 mb-2">Gestión de Pre-productos</h1>
+    <p class="text-gray-600">Administra los pre-productos del sistema</p>
+  </div>
+
+  <div class="bg-white rounded-lg shadow-md p-4 mb-6">
+    <div class="flex flex-col md:flex-row md:items-center justify-between gap-4">
+      <div class="relative flex-grow max-w-md">
+        <input type="text" [(ngModel)]="filtro" (input)="buscarPreProductos()" placeholder="Buscar pre-producto..."
+          class="block w-full p-2 pl-10 text-sm text-gray-900 border border-gray-300 rounded-lg bg-gray-50 focus:ring-blue-500 focus:border-blue-500" />
+        <div class="absolute inset-y-0 left-0 flex items-center pl-3 pointer-events-none">
+          <svg class="w-4 h-4 text-gray-500" fill="none" viewBox="0 0 20 20">
+            <path stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+              d="m19 19-4-4m0-7A7 7 0 1 1 1 8a7 7 0 0 1 14 0Z" />
+          </svg>
+        </div>
+      </div>
+
+      <button (click)="openRegisterModal()" type="button"
+        class="flex items-center justify-center text-white bg-blue-600 hover:bg-blue-700 focus:ring-4 focus:ring-blue-300 font-medium rounded-lg text-sm px-4 py-2">
+        <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"></path>
+        </svg>
+        Nuevo Pre-producto
+      </button>
+    </div>
+  </div>
+
+  <div class="bg-white rounded-lg shadow-md overflow-hidden">
+    <div class="overflow-x-auto">
+      <table class="w-full text-sm text-left text-gray-500">
+        <thead class="text-xs text-gray-700 uppercase bg-gray-100">
+          <tr>
+            <th class="px-6 py-3">ID</th>
+            <th class="px-6 py-3">Nombre</th>
+            <th class="px-6 py-3">Descripción</th>
+            <th class="px-6 py-3">Stock</th>
+            <th class="px-6 py-3">Tiempo</th>
+            <th class="px-6 py-3">Imagen</th>
+            <th class="px-6 py-3">Acciones</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr *ngFor="let p of preProductosFiltrados" class="border-b hover:bg-gray-50">
+            <td class="px-6 py-4 font-medium text-gray-900">{{ p.id }}</td>
+            <td class="px-6 py-4">{{ p.nombre }}</td>
+            <td class="px-6 py-4">{{ p.descripcion }}</td>
+            <td class="px-6 py-4">{{ p.stock }}</td>
+            <td class="px-6 py-4">{{ p.tiempo }}</td>
+            <td class="px-6 py-4">
+              <img *ngIf="p.url_Image" [src]="p.url_Image" alt="imagen" class="h-10 w-10 object-cover rounded" />
+              <span *ngIf="!p.url_Image" class="text-gray-400">No imagen</span>
+            </td>
+            <td class="px-6 py-4">
+              <div class="flex space-x-2">
+                <button
+                  (click)="openUpdateModal(p)"
+                  class="text-blue-600 hover:text-blue-900"
+                  title="Editar"
+                >
+                  <svg
+                    class="h-5 w-5"
+                    fill="none"
+                    viewBox="0 0 24 24"
+                    stroke="currentColor"
+                  >
+                    <path
+                      stroke-linecap="round"
+                      stroke-linejoin="round"
+                      stroke-width="2"
+                      d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"
+                    />
+                  </svg>
+                </button>
+                <button
+                  (click)="deletePreProducto(p)"
+                  class="text-red-600 hover:text-red-900"
+                  title="Eliminar"
+                >
+                  <svg
+                    class="h-5 w-5"
+                    fill="none"
+                    viewBox="0 0 24 24"
+                    stroke="currentColor"
+                  >
+                    <path
+                      stroke-linecap="round"
+                      stroke-linejoin="round"
+                      stroke-width="2"
+                      d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"
+                    />
+                  </svg>
+                </button>
+              </div>
+            </td>
+          </tr>
+          <tr *ngIf="preProductosFiltrados && preProductosFiltrados.length === 0">
+            <td colspan="7" class="px-6 py-12 text-center text-gray-500">No se encontraron pre-productos.</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+<!-- Modal Registrar -->
+<div *ngIf="isModalRegisterOpen" class="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4">
+  <div class="bg-white rounded-lg shadow-xl w-full max-w-md mx-auto">
+    <div class="flex items-center justify-between px-6 py-4 bg-blue-600">
+      <h3 class="text-lg font-medium text-white">Registrar nuevo Pre-producto</h3>
+      <button (click)="closeRegisterModal()" class="text-white hover:text-gray-200">✖️</button>
+    </div>
+    <form (ngSubmit)="createPreProducto()" class="p-6">
+      <div class="grid grid-cols-1 gap-4">
+        <div>
+          <label class="block text-sm font-medium text-gray-700">Nombre *</label>
+          <input type="text" [(ngModel)]="nuevoPreProducto.nombre" name="nombre" required
+            class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm" />
+        </div>
+        <div>
+          <label class="block text-sm font-medium text-gray-700">Descripción *</label>
+          <input type="text" [(ngModel)]="nuevoPreProducto.descripcion" name="descripcion" required
+            class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm" />
+        </div>
+        <div>
+          <label class="block text-sm font-medium text-gray-700">Stock *</label>
+          <input type="number" [(ngModel)]="nuevoPreProducto.stock" name="stock" required
+            class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm" />
+        </div>
+        <div>
+          <label class="block text-sm font-medium text-gray-700">Tiempo *</label>
+          <input type="text" [(ngModel)]="nuevoPreProducto.tiempo" name="tiempo" required
+            class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm" />
+        </div>
+        <div>
+          <label class="block text-sm font-medium text-gray-700">URL Imagen</label>
+          <input type="text" [(ngModel)]="nuevoPreProducto.url_Image" name="url_Image"
+            class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm" />
+        </div>
+      </div>
+      <div class="mt-6 flex justify-end space-x-3">
+        <button type="button" (click)="closeRegisterModal()"
+          class="px-4 py-2 border border-gray-300 rounded-md text-sm bg-white hover:bg-gray-50">Cancelar</button>
+        <button type="submit"
+          class="px-4 py-2 border border-transparent rounded-md text-sm text-white bg-blue-600 hover:bg-blue-700">Registrar</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- Modal Actualizar -->
+<div *ngIf="isModalUpdateOpen" class="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4">
+  <div class="bg-white rounded-lg shadow-xl w-full max-w-md mx-auto">
+    <div class="flex items-center justify-between px-6 py-4 bg-blue-600">
+      <h3 class="text-lg font-medium text-white">Actualizar Pre-producto</h3>
+      <button (click)="closeUpdateModal()" class="text-white hover:text-gray-200">✖️</button>
+    </div>
+    <form (ngSubmit)="updatePreProducto()" class="p-6">
+      <div class="grid grid-cols-1 gap-4">
+        <div>
+          <label class="block text-sm font-medium text-gray-700">Nombre *</label>
+          <input type="text" [(ngModel)]="preProductoUpdate.nombre" name="nombreUpdate" required
+            class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm" />
+        </div>
+        <div>
+          <label class="block text-sm font-medium text-gray-700">Descripción *</label>
+          <input type="text" [(ngModel)]="preProductoUpdate.descripcion" name="descripcionUpdate" required
+            class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm" />
+        </div>
+        <div>
+          <label class="block text-sm font-medium text-gray-700">Stock *</label>
+          <input type="number" [(ngModel)]="preProductoUpdate.stock" name="stockUpdate" required
+            class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm" />
+        </div>
+        <div>
+          <label class="block text-sm font-medium text-gray-700">Tiempo *</label>
+          <input type="text" [(ngModel)]="preProductoUpdate.tiempo" name="tiempoUpdate" required
+            class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm" />
+        </div>
+        <div>
+          <label class="block text-sm font-medium text-gray-700">URL Imagen</label>
+          <input type="text" [(ngModel)]="preProductoUpdate.url_Image" name="url_ImageUpdate"
+            class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm" />
+        </div>
+      </div>
+      <div class="mt-6 flex justify-end space-x-3">
+        <button type="button" (click)="closeUpdateModal()"
+          class="px-4 py-2 border border-gray-300 rounded-md text-sm bg-white hover:bg-gray-50">Cancelar</button>
+        <button type="submit"
+          class="px-4 py-2 border border-transparent rounded-md text-sm text-white bg-blue-600 hover:bg-blue-700">Actualizar</button>
+      </div>
+    </form>
+  </div>
+</div>
