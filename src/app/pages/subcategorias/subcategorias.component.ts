@@ -12,13 +12,13 @@ import { SubcategoriasService } from '../../services/subcategorias.service';
   styleUrl: './subcategorias.component.css'
 })
 export class SubcategoriasComponent {
-
+  subcategoriasFiltradas: any[] = []; // Subcategorías visibles según filtro
+  filtro: string = '';
   subcategorias: any[] = [];
-  subcategoria: any;
-  subcategoriaUpdate: any;
-  nuevaSubcategoria: any = { nombre: '' };
-  nombreSubcategoria: string = '';
-  subcategoriaIdSelected: any;
+  subcategoriaUpdate: string = '';
+  subcategoriaDescripcionUpdate: string = '';
+  nuevaSubcategoria: any = { nombre: '', descripcion: '' };
+  subcategoriaIdSelected: number = 0;
   isModalRegisterSubcategoriaOpen: boolean = false;
   isModalUpdateSubcategoriaOpen: boolean = false;
 
@@ -29,9 +29,18 @@ export class SubcategoriasComponent {
   }
 
   getSubcategorias(): void {
+    Swal.fire({
+      title: 'Cargando subcategorias...',
+      allowOutsideClick: false,
+      didOpen: () => {
+        Swal.showLoading();
+      }
+    });
     this.subcategoriasService.getSubcategorias().subscribe({
       next: (data) => {
         this.subcategorias = data;
+          Swal.close();
+        this.subcategoriasFiltradas = data; // Mostrar todas al inicio
       },
       error: (error) => {
         console.error('Error al obtener las subcategorias', error);
@@ -39,12 +48,24 @@ export class SubcategoriasComponent {
     });
   }
 
+  buscarSubcategorias(): void {
+    const termino = this.filtro.trim().toLowerCase();
+    if (termino === '') {
+      this.subcategoriasFiltradas = this.subcategorias;
+    } else {
+      this.subcategoriasFiltradas = this.subcategorias.filter(sub =>
+        sub.nombre.toLowerCase().includes(termino)
+      );
+    }
+  }
+
   createSubcategoria(): void {
-    if (!this.nuevaSubcategoria.nombre.trim()) return;
+    if (!this.nuevaSubcategoria.nombre.trim() || !this.nuevaSubcategoria.descripcion.trim()) return;
     this.subcategoriasService.createSubcategoria(this.nuevaSubcategoria).subscribe({
       next: (data) => {
-        this.subcategorias.push(data);
-        this.nuevaSubcategoria = { nombre: '' };
+        //this.subcategorias.push(data);
+        console.log(data);
+        this.nuevaSubcategoria = { nombre: '', descripcion: '' };
         this.getSubcategorias();
         Swal.fire({
           position: "center",
@@ -78,12 +99,14 @@ export class SubcategoriasComponent {
     console.log('subcategoria id: ' + subcategoria.id);
     this.isModalUpdateSubcategoriaOpen = true;
     this.subcategoriaUpdate = subcategoria.nombre;
-    this.subcategoriaIdSelected = subcategoria.id;
+    this.subcategoriaIdSelected = subcategoria.id;               
+    this.subcategoriaDescripcionUpdate = subcategoria.descripcion;
   }
 
   updateSubcategoria() {
     let subcategoriaData = {
       nombre: this.subcategoriaUpdate,
+      descripcion: this.subcategoriaDescripcionUpdate
     };
     this.subcategoriasService.updateSubcategoria(this.subcategoriaIdSelected, subcategoriaData).subscribe(
       {
@@ -94,7 +117,7 @@ export class SubcategoriasComponent {
             Swal.fire({
               position: "center",
               icon: "success",
-              title: "Subcategoria actualizado!",
+              title: "Subcategoria actualizada!",
               showConfirmButton: false,
               timer: 2500
             });

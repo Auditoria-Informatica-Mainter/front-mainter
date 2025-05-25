@@ -6,7 +6,7 @@ import Swal from 'sweetalert2'
 //import { error } from 'console';
 import { UserService } from '../../services/user.service';
 import { RoleService } from '../../services/rol.service';
-import { UsuarioDTO } from '../../models/usuario.model';
+
 
 
 @Component({
@@ -18,7 +18,8 @@ import { UsuarioDTO } from '../../models/usuario.model';
 })
 
 export class UsuarioComponent implements OnInit {
-
+  usersFiltrados: any[] = []; // visibles según filtro
+  filtro: string = '';
   isModalRegisterUserOpen: boolean = false;
   isModalUpdateUserOpen: boolean = false;
   username: any;
@@ -206,6 +207,7 @@ export class UsuarioComponent implements OnInit {
             console.error('Formato de respuesta inesperado:', resp);
             this.users = []; // Inicializar como array vacío para evitar errores
           }
+          this.usersFiltrados = [...this.users];  //se copia para la busqueda
         },
         error: (error: any) => {
           console.log('Error al obtener usuarios:', error);
@@ -220,6 +222,17 @@ export class UsuarioComponent implements OnInit {
         }
       }
     );
+  }
+
+  buscarUsuarios(): void {
+    const termino = this.filtro.trim().toLowerCase();
+    if (termino === '') {
+      this.usersFiltrados = this.users;
+    } else {
+      this.usersFiltrados = this.users.filter(sub =>
+        sub.nombre.toLowerCase().includes(termino)
+      );
+    }
   }
 
   openModalToUpdateUser(user: any) {
