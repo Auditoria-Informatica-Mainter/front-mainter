@@ -75,7 +75,7 @@ export class PrePlanoComponent implements OnInit {
   }
 
   getPreProductos(): void {
-    this.preProductoService.getPreProductos().subscribe({
+    this.preProductoService.obtenerTodos().subscribe({
       next: (data) => this.preProductos = data,
       error: (error) => console.error('Error al obtener pre-productos', error)
     });

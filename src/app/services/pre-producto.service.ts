@@ -1,47 +1,54 @@
 import { Injectable } from '@angular/core';
-import { HttpClient } from '@angular/common/http';
-import { Observable, map } from 'rxjs';
+import { HttpClient, HttpParams } from '@angular/common/http';
+import { Observable } from 'rxjs';
+import { PreProducto, PreProductoDTO } from '../models/preProducto.model';
 import { environment } from '../enviroment';
 
 @Injectable({
   providedIn: 'root'
 })
 export class PreProductoService {
-  private apiUrl = environment.apiUrl + 'api/preproductos';
+    private apiUrl = environment.apiUrl + 'api/preproductos';
+  
+    constructor(private http: HttpClient) {
+      console.log('URL de API de PreProductos:', this.apiUrl);
+    }
 
-  constructor(private http: HttpClient) {}
-
-  getPreProductos(): Observable<any[]> {
-    return this.http.get<any>(this.apiUrl).pipe(
-      map(resp => resp.data || resp)
-    );
+  // Métodos básicos de PreProducto
+  obtenerTodos(): Observable<PreProducto[]> {
+    return this.http.get<PreProducto[]>(this.apiUrl);
   }
 
-  getPreProducto(id: number): Observable<any> {
-    return this.http.get<any>(`${this.apiUrl}/${id}`);
+  obtenerPorId(id: number): Observable<PreProducto> {
+    return this.http.get<PreProducto>(`${this.apiUrl}/${id}`);
   }
 
-  createPreProducto(preproducto: {
-    nombre: string;
-    descripcion: string;
-    tiempo: string;
-    stock: number;
-    url_Image: string;
-  }): Observable<any> {
-    return this.http.post<any>(this.apiUrl, preproducto);
+  crear(preProducto: PreProductoDTO): Observable<PreProducto> {
+    return this.http.post<PreProducto>(this.apiUrl, preProducto);
   }
 
-  updatePreProducto(id: number, preproducto: {
-    nombre: string;
-    descripcion: string;
-    tiempo: string;
-    stock: number;
-    url_Image: string;
-  }): Observable<any> {
-    return this.http.put<any>(`${this.apiUrl}/${id}`, preproducto);
+  actualizar(id: number, preProducto: PreProductoDTO): Observable<PreProducto> {
+    return this.http.put<PreProducto>(`${this.apiUrl}/${id}`, preProducto);
   }
 
-  deletePreProducto(id: number): Observable<any> {
-    return this.http.delete<any>(`${this.apiUrl}/${id}`);
+  eliminar(id: number): Observable<void> {
+    return this.http.delete<void>(`${this.apiUrl}/${id}`);
+  }
+
+  // Métodos integrados con planificaciones
+  obtenerConPlanificaciones(id: number): Observable<any> {
+    return this.http.get<any>(`${this.apiUrl}/${id}/con-planificaciones`);
+  }
+
+  obtenerPlanificaciones(id: number): Observable<any[]> {
+    return this.http.get<any[]>(`${this.apiUrl}/${id}/planificaciones`);
+  }
+
+  calcularTiempoProduccion(id: number): Observable<any> {
+    return this.http.get<any>(`${this.apiUrl}/${id}/tiempo-produccion`);
+  }
+
+  verificarPlanificacionCompleta(id: number): Observable<any> {
+    return this.http.get<any>(`${this.apiUrl}/${id}/planificacion-completa`);
   }
 }

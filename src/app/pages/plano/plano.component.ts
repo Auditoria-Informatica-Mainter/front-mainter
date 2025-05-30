@@ -49,7 +49,7 @@ export class PlanoComponent implements OnInit {
   ngOnInit(): void {
     forkJoin([
       this.productoService.getProductos(),
-      this.preProductoService.getPreProductos(),
+      this.preProductoService.obtenerTodos(),
       this.planoService.getPlanos()
     ]).subscribe({
       next: ([productos, preProductos, planosRaw]) => {
