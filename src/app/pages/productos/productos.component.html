@@ -18,8 +18,7 @@
                             d="m19 19-4-4m0-7A7 7 0 1 1 1 8a7 7 0 0 1 14 0Z" />
                     </svg>
                 </div>
-                <input type="text" [(ngModel)]="filtro" (input)="filtrarProductos()"
-                    placeholder="Buscar subcategoría..."
+                <input type="text" [(ngModel)]="filtro" (input)="filtrarProductos()" placeholder="Buscar producto..."
                     class="block w-full p-2 pl-10 text-sm text-gray-900 border border-gray-300 rounded-lg bg-gray-50 focus:ring-blue-500 focus:border-blue-500" />
             </div>
 
@@ -48,7 +47,7 @@
                         <th scope="col" class="px-6 py-3">Precio Unitario</th>
                         <th scope="col" class="px-6 py-3">Tiempo</th>
                         <th scope="col" class="px-6 py-3">Imagen</th>
-                        <th scope="col" class="px-6 py-3">Materiales</th>
+                        <!-- <th scope="col" class="px-6 py-3">Materiales</th> -->
                         <th scope="col" class="px-6 py-3">Acciones</th>
                     </tr>
                 </thead>
@@ -73,7 +72,7 @@
                                 <span *ngIf="!producto.imagen" class="text-gray-400 italic">Sin imagen</span>
                             </div>
                         </td>
-                        <td class="px-6 py-4">
+                        <!-- <td class="px-6 py-4">
                             <ul *ngIf="producto.materiales && producto.materiales.length > 0"
                                 class="list-disc list-inside">
                                 <li *ngFor="let mat of producto.materiales">
@@ -84,7 +83,7 @@
                                 class="text-gray-400 italic">
                                 No asignado
                             </span>
-                        </td>
+                        </td> -->
                         <td class="px-6 py-4">
                             <div class="flex space-x-2">
                                 <button (click)="abrirModalEditar(producto)" class="text-blue-600 hover:text-blue-900"
@@ -191,10 +190,13 @@
                 </div>
 
                 <div>
-                    <label for="imagen" class="block text-sm font-medium text-gray-700">Imagen</label>
-                    <input type="text" id="imagen" [(ngModel)]="productoNuevo.imagen" name="imagen"
-                        placeholder="URL o nombre del archivo"
-                        class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 text-sm" />
+                    <label for="imagen" class="block text-sm font-medium text-gray-700">Imagen del Producto</label>
+                    <ngx-dropzone (change)="onSelect($event)">
+                        <ngx-dropzone-label>Arrastra la imagen aqui</ngx-dropzone-label>
+                        <ngx-dropzone-preview *ngFor="let f of files" [removable]="true" (removed)="onRemove(f)">
+                            <ngx-dropzone-label>{{ f.name }} ({{ f.type }})</ngx-dropzone-label>
+                        </ngx-dropzone-preview>
+                    </ngx-dropzone>
                 </div>
 
                 <div class="sm:col-span-2">
@@ -269,10 +271,17 @@
                 </div>
 
                 <div>
-                    <label for="edit-imagen" class="block text-sm font-medium text-gray-700">Imagen</label>
-                    <input type="text" id="edit-imagen" [(ngModel)]="productoEdit.imagen" name="editImagen"
-                        placeholder="URL o nombre del archivo"
-                        class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-yellow-500 focus:border-yellow-500 text-sm" />
+                    <label for="imagen" class="block text-sm font-medium text-gray-700">Imagen del Producto</label>
+                    <div class="mb-4">
+                        <img [src]="previewImageUrl ? previewImageUrl : nuevaImagen" alt="Producto"
+                            class="max-w-full max-h-60 rounded mt-2 mx-auto" />
+                    </div>
+                    <ngx-dropzone (change)="onSelect($event)">
+                        <ngx-dropzone-label>Agrega la nueva imagen aqui</ngx-dropzone-label>
+                        <ngx-dropzone-preview *ngFor="let f of files" [removable]="true" (removed)="onRemove(f)">
+                            <ngx-dropzone-label>{{ f.name }} ({{ f.type }})</ngx-dropzone-label>
+                        </ngx-dropzone-preview>
+                    </ngx-dropzone>
                 </div>
 
                 <div class="sm:col-span-2">
@@ -313,36 +322,26 @@
         </div>
 
         <div class="p-6">
-            <!-- Sección para actualizar la imagen -->
-            <div class="mb-6">
-                <label class="block text-sm font-medium text-gray-700">Actualizar Imagen:</label>
-                <div class="flex items-center mt-1">
-                    <!-- Mostrar imagen actual, si existe -->
-                    <img *ngIf="productoSeleccionado.imagen" [src]="productoSeleccionado.imagen" alt="Imagen actual"
-                        class="w-12 h-12 rounded border mr-2" />
-                    <!-- Si no hay imagen, se muestra un placeholder -->
-                    <span *ngIf="!productoSeleccionado.imagen" class="text-gray-400 italic mr-2">Sin imagen</span>
-                    <!-- Botón para editar la imagen -->
-                    <button (click)="editandoImagen = !editandoImagen" class="text-blue-600 hover:text-blue-900">
-                        <!-- Ícono de lápiz -->
-                        <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24"
-                            stroke="currentColor">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                                d="M11 4H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
-                        </svg>
-                    </button>
+
+            <!-- Input para editar la imagen -->
+            <div>
+                <label for="imagen" class="block text-sm font-medium text-gray-700">Imagen del Producto</label>
+                <div class="mb-4">
+                    <img [src]="previewImageUrl ? previewImageUrl : nuevaImagen" alt="Producto"
+                        class="max-w-full max-h-60 rounded mt-2 mx-auto" />
                 </div>
-                <!-- Input para editar la imagen -->
-                <div *ngIf="editandoImagen" class="mt-3">
-                    <input type="text" [(ngModel)]="nuevaImagen" placeholder="Ingrese nueva URL de imagen"
-                        class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 text-sm" />
-                    <div class="mt-2 flex justify-end">
-                        <button (click)="actualizarImagen()"
-                            class="px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500">
-                            Guardar imagen
-                        </button>
-                    </div>
-                </div>
+                <ngx-dropzone (change)="onSelect($event)">
+                    <ngx-dropzone-label>Agrega la nueva imagen aqui</ngx-dropzone-label>
+                    <ngx-dropzone-preview *ngFor="let f of files" [removable]="true" (removed)="onRemove(f)">
+                        <ngx-dropzone-label>{{ f.name }} ({{ f.type }})</ngx-dropzone-label>
+                    </ngx-dropzone-preview>
+                </ngx-dropzone>
+            </div>
+            <div class="mt-2 flex justify-end">
+                <button (click)="actualizarImagen()"
+                    class="px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500">
+                    Guardar imagen
+                </button>
             </div>
 
             <!-- Sección para actualizar el stock -->

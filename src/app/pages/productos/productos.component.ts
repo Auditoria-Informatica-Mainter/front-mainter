@@ -3,11 +3,14 @@ import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import Swal from 'sweetalert2';
 import { ProductoService } from '../../services/producto.service';
+import { NgxDropzoneModule } from 'ngx-dropzone';
+import { map, Observable } from 'rxjs';
+import { ImgDropService } from '../../services/img-drop.service';
 
 @Component({
   selector: 'app-productos',
   standalone: true,
-  imports: [CommonModule, FormsModule],
+  imports: [CommonModule, FormsModule, NgxDropzoneModule],
   templateUrl: './productos.component.html',
   styleUrl: './productos.component.css'
 })
@@ -42,6 +45,7 @@ export class ProductosComponent {
   //Variables para la actualizacion de la imagen o stock
   productoSeleccionado: any = null;
   nuevaImagen: string = '';
+  previewImageUrl: string | ArrayBuffer | null = null;
   nuevoStock: number = 0;
   editandoStock: boolean = false;
   editandoImagen: boolean = false;
@@ -51,10 +55,44 @@ export class ProductosComponent {
   isModalNuevoOpen: boolean = false;
   isModalEditarOpen: boolean = false;
 
-  constructor(private productoService: ProductoService) { }
+  constructor(private productoService: ProductoService, private imgdropService: ImgDropService) { }
 
   ngOnInit(): void {
     this.obtenerProductos();
+  }
+
+  files: File[] = [];
+
+  onSelect(event: any) {
+    this.files = []; // solo permite una imagen
+    this.files.push(...event.addedFiles);
+
+    const reader = new FileReader();
+    reader.onload = () => {
+      this.previewImageUrl = reader.result;
+    };
+
+    if (this.files[0]) {
+      reader.readAsDataURL(this.files[0]);
+    }
+  }
+
+  onRemove(file: File): void {
+    this.files.splice(this.files.indexOf(file), 1);
+    this.previewImageUrl = null;
+  }
+
+  upload(): Observable<string> {
+    const file_data = this.files[0];
+    const data = new FormData();
+
+    data.append('file', file_data);
+    data.append('upload_preset', 'nova-library');
+    data.append('cloud_name', 'day1tsmdn');
+
+    return this.imgdropService.uploadImg(data).pipe(
+      map((response: any) => response.secure_url)
+    );
   }
 
   obtenerProductos(): void {
@@ -81,7 +119,17 @@ export class ProductosComponent {
   }
 
   abrirModalNuevo(): void {
-    this.productoNuevo = { nombre: '', descripcion: '', precio: 0, stock: 0, stockMinimo: 1, imagen: '', tiempo: '' };
+    this.productoNuevo = {
+      nombre: '',
+      descripcion: '',
+      precioUnitario: 0,
+      stock: 0,
+      stock_minimo: 1,
+      imagen: '',
+      tiempo: ''
+    };
+    this.previewImageUrl = null;
+    this.files = [];
     this.isModalNuevoOpen = true;
   }
 
@@ -90,21 +138,67 @@ export class ProductosComponent {
   }
 
   crearProducto(): void {
-    this.productoService.createProducto(this.productoNuevo).subscribe({
-      next: () => {
-        Swal.fire('¡Registrado!', 'Producto creado exitosamente.', 'success');
-        this.obtenerProductos();
-        this.cerrarModalNuevo();
+    if (this.files.length === 0) {
+      Swal.fire("Por favor selecciona una imagen");
+      return;
+    }
+
+    this.upload().subscribe({
+      next: (imagen: string) => {
+        const producto = {
+          nombre: this.productoNuevo.nombre,
+          descripcion: this.productoNuevo.descripcion,
+          precioUnitario: this.productoNuevo.precioUnitario,
+          stock: this.productoNuevo.stock,
+          stock_minimo: this.productoNuevo.stock_minimo,
+          imagen: imagen, // aqui la URL de Cloudinary
+          tiempo: this.productoNuevo.tiempo
+        };
+
+        this.productoService.createProducto(producto).subscribe({
+          next: (resp: any) => {
+            if (resp.id || resp.id >= 1) {
+              this.obtenerProductos();
+              Swal.fire({
+                position: "center",
+                icon: "success",
+                title: "Producto registrado!",
+                showConfirmButton: false,
+                timer: 2500
+              });
+              setTimeout(() => this.cerrarModalNuevo(), 2600);
+            } else {
+              Swal.fire({
+                position: "center",
+                icon: "error",
+                title: "Error al registrar el Producto!",
+                showConfirmButton: false,
+                timer: 2500
+              });
+            }
+          },
+          error: () => {
+            Swal.fire({
+              position: "center",
+              icon: "error",
+              title: "Error al registrar el Producto!",
+              showConfirmButton: false,
+              timer: 2500
+            });
+          }
+        });
       },
-      error: (err) => {
-        console.error(err);
-        Swal.fire('Error', 'No se pudo registrar el producto.', 'error');
+      error: (e: any) => {
+        console.log(e);
+        Swal.fire("Error al subir la imagen");
       }
     });
   }
 
   abrirModalEditar(producto: any): void {
     this.productoEdit = { ...producto };
+    this.previewImageUrl = producto.imagen; // mostrar imagen actual
+    this.files = []; // evitar arrastre previo
     this.isModalEditarOpen = true;
   }
 
@@ -112,14 +206,39 @@ export class ProductosComponent {
     this.isModalEditarOpen = false;
   }
 
+  updateproducto() {
+    if (this.files.length > 0) {
+      // Subir imagen nueva a Cloudinary
+      Swal.fire({ title: 'Subiendo imagen...', allowOutsideClick: false, didOpen: () => Swal.showLoading() });
+
+      this.upload().subscribe({
+        next: (imgUrl: string) => {
+          // Asignar nueva imagen al producto y actualizar
+          this.productoEdit.imagen = imgUrl;
+          this.actualizarProducto();
+        },
+        error: (e: any) => {
+          Swal.close();
+          console.error(e);
+          Swal.fire("Error al subir la nueva imagen");
+        }
+      });
+    } else {
+      // No se subió una nueva imagen, usar la existente
+      this.actualizarProducto();
+    }
+  }
+
   actualizarProducto(): void {
     this.productoService.updateProducto(this.productoEdit.id, this.productoEdit).subscribe({
       next: () => {
+        Swal.close();
         Swal.fire('¡Actualizado!', 'Producto actualizado correctamente.', 'success');
         this.obtenerProductos();
         this.cerrarModalEditar();
       },
       error: (err) => {
+        Swal.close();
         console.error(err);
         Swal.fire('Error', 'No se pudo actualizar el producto.', 'error');
       }
@@ -150,7 +269,7 @@ export class ProductosComponent {
     });
   }
 
-  actualizarImagen(): void {
+  XactualizarImagen(): void {
     if (!this.nuevaImagen.trim()) return;
 
     this.productoService.updateImageProducto(this.productoSeleccionado.id, this.nuevaImagen).subscribe({
@@ -171,6 +290,49 @@ export class ProductosComponent {
       error: (err) => {
         console.error(err);
         Swal.fire('Error', 'No se pudo actualizar la imagen.', 'error');
+      }
+    });
+  }
+
+  actualizarImagen(): void {
+    if (this.files.length === 0) {
+      Swal.fire("Por favor selecciona una imagen");
+      return;
+    }
+
+    Swal.fire({ title: 'Subiendo imagen...', allowOutsideClick: false, didOpen: () => Swal.showLoading() });
+
+    this.upload().subscribe({
+      next: (imgUrl: string) => {
+        this.productoService.updateImageProducto(this.productoSeleccionado.id, imgUrl).subscribe({
+          next: (resp: any) => {
+            Swal.close();
+            if (resp) {
+              this.obtenerProductos();
+              Swal.fire({
+                position: "center",
+                icon: "success",
+                title: "¡Imagen actualizada!",
+                showConfirmButton: false,
+                timer: 2500
+              }).then(() => {
+                this.cerrarModalActualizar();
+                this.files = []; // Limpiar dropzone
+                this.previewImageUrl = null;
+              });
+            }
+          },
+          error: (err) => {
+            Swal.close();
+            console.error(err);
+            Swal.fire('Error', 'No se pudo actualizar la imagen.', 'error');
+          }
+        });
+      },
+      error: (e: any) => {
+        Swal.close();
+        console.error(e);
+        Swal.fire("Error al subir la imagen");
       }
     });
   }
