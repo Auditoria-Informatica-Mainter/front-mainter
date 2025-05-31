@@ -9,12 +9,18 @@ import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import Swal from 'sweetalert2';
 import { forkJoin, of, delay, retry, catchError } from 'rxjs';
+import { ImgDropService } from '../../services/img-drop.service';
+import { NgxDropzoneModule } from 'ngx-dropzone';
+import { map, Observable } from 'rxjs';
+import jsPDF from 'jspdf';
+import autoTable from 'jspdf-autotable';
+
 
 @Component({
   selector: 'app-pre-producto',
   templateUrl: './pre-producto.component.html',
   standalone: true,
-  imports: [CommonModule, FormsModule],
+  imports: [CommonModule, FormsModule, NgxDropzoneModule],
   styleUrls: ['./pre-producto.component.css']
 })
 export class PreProductoComponent implements OnInit {
@@ -71,11 +77,17 @@ export class PreProductoComponent implements OnInit {
   cargandoEstadosGlobales = false;
 
   dropdownOpen: number | null = null;
+  files: File[] = [];
+
+  nuevaImagen: string = '';
+  previewImageUrl: string | ArrayBuffer | null = null;
+  editandoImagen: boolean = false;
 
   constructor(
     private preProductoService: PreProductoService,
     private preMaquinariaService: PreMaquinariaService,
-    private maquinariaService: MaquinariaService
+    private maquinariaService: MaquinariaService,
+    private imgDropService: ImgDropService,
   ) {}
 
   ngOnInit(): void {
@@ -93,8 +105,8 @@ export class PreProductoComponent implements OnInit {
       next: (data) => {
         this.preProductos = data;
         this.preProductosFiltrados = data;
-        // ✅ MEJORADO: Cargar estados de forma controlada
         this.cargarTodosLosEstadosOptimizado();
+        console.log('📦 Preproductos:', data); 
       },
       error: (error) => {
         console.error('Error al cargar pre-productos:', error);
@@ -242,50 +254,89 @@ export class PreProductoComponent implements OnInit {
     this.isModalRegisterOpen = false;
   }
 
-  createPreProducto(): void {
-    if (!this.validarPreProducto(this.nuevoPreProducto)) {
-      return;
-    }
+createPreProducto(): void {
+  if (!this.validarPreProducto(this.nuevoPreProducto)) {
+    return;
+  }
 
-    this.preProductoService.crear(this.nuevoPreProducto).subscribe({
-      next: (data) => {
-        Swal.fire('Éxito', 'Pre-producto creado correctamente', 'success');
-        this.cargarPreProductos();
-        this.closeRegisterModal();
+  // Si hay imagen seleccionada, primero se sube a Cloudinary
+  if (this.files.length > 0) {
+    this.upload().subscribe({
+      next: (url) => {
+        this.nuevoPreProducto.url_Image = url; // asignar URL a preproducto
+        this.guardarPreProducto(); // guardar en la BD
       },
       error: (error) => {
-        console.error('Error al crear pre-producto:', error);
-        Swal.fire('Error', 'No se pudo crear el pre-producto', 'error');
+        console.error('Error al subir imagen a Cloudinary:', error);
+        Swal.fire('Error', 'No se pudo subir la imagen', 'error');
       }
     });
+  } else {
+    this.guardarPreProducto(); // guardar sin imagen
   }
+}
 
-  openUpdateModal(preProducto: PreProducto): void {
-    this.preProductoUpdate = { ...preProducto };
-    this.isModalUpdateOpen = true;
-  }
+guardarPreProducto(): void {
+  this.preProductoService.crear(this.nuevoPreProducto).subscribe({
+    next: () => {
+      Swal.fire('Éxito', 'Pre-producto creado correctamente', 'success');
+      this.cargarPreProductos();
+      this.closeRegisterModal();
+    },
+    error: (error) => {
+      console.error('Error al crear pre-producto:', error);
+      Swal.fire('Error', 'No se pudo crear el pre-producto', 'error');
+    }
+  });
+}
+
+openUpdateModal(preProducto: PreProducto): void {
+  this.preProductoUpdate = { ...preProducto };
+  this.isModalUpdateOpen = true;
+  this.previewImageUrl = preProducto.url_Image || null;
+  this.files = [];
+}
+
 
   closeUpdateModal(): void {
     this.isModalUpdateOpen = false;
   }
 
-  updatePreProducto(): void {
-    if (!this.validarPreProducto(this.preProductoUpdate)) {
-      return;
-    }
+updatePreProducto(): void {
+  if (!this.validarPreProducto(this.preProductoUpdate)) {
+    return;
+  }
 
-    this.preProductoService.actualizar(this.preProductoUpdate.id, this.preProductoUpdate).subscribe({
-      next: (data) => {
-        Swal.fire('Éxito', 'Pre-producto actualizado correctamente', 'success');
-        this.cargarPreProductos();
-        this.closeUpdateModal();
+  // Si hay una nueva imagen seleccionada
+  if (this.files.length > 0) {
+    this.upload().subscribe({
+      next: (url) => {
+        this.preProductoUpdate.url_Image = url; // ✅ asignamos la nueva URL
+        this.enviarActualizacion();             // 👇 separamos la lógica de envío
       },
       error: (error) => {
-        console.error('Error al actualizar pre-producto:', error);
-        Swal.fire('Error', 'No se pudo actualizar el pre-producto', 'error');
+        console.error('Error al subir imagen:', error);
+        Swal.fire('Error', 'No se pudo subir la nueva imagen', 'error');
       }
     });
+  } else {
+    this.enviarActualizacion(); // Si no hay nueva imagen, solo actualizamos
   }
+}
+enviarActualizacion(): void {
+  this.preProductoService.actualizar(this.preProductoUpdate.id, this.preProductoUpdate).subscribe({
+    next: () => {
+      Swal.fire('Éxito', 'Pre-producto actualizado correctamente', 'success');
+      this.cargarPreProductos();  // ✅ Refresca la tabla
+      this.closeUpdateModal();
+    },
+    error: (error) => {
+      console.error('Error al actualizar pre-producto:', error);
+      Swal.fire('Error', 'No se pudo actualizar el pre-producto', 'error');
+    }
+  });
+}
+
 
   deletePreProducto(preProducto: PreProducto): void {
     Swal.fire({
@@ -311,6 +362,38 @@ export class PreProductoComponent implements OnInit {
         });
       }
     });
+  }
+//IMAGENES
+onSelect(event: any) {
+    this.files = []; // solo permite una imagen
+    this.files.push(...event.addedFiles);
+
+    const reader = new FileReader();
+    reader.onload = () => {
+      this.previewImageUrl = reader.result;
+    };
+
+    if (this.files[0]) {
+      reader.readAsDataURL(this.files[0]);
+    }
+  }
+
+  onRemove(file: File): void {
+    this.files.splice(this.files.indexOf(file), 1);
+    this.previewImageUrl = null;
+  }
+
+  upload(): Observable<string> {
+    const file_data = this.files[0];
+    const data = new FormData();
+
+    data.append('file', file_data);
+    data.append('upload_preset', 'nova-library');
+    data.append('cloud_name', 'day1tsmdn');
+
+    return this.imgDropService.uploadImg(data).pipe(
+      map((response: any) => response.secure_url)
+    );
   }
 
   // ================ GESTIÓN DE PLANIFICACIONES ================
@@ -560,24 +643,35 @@ export class PreProductoComponent implements OnInit {
     });
   }
 
-  exportarResumen(preProducto: PreProducto): void {
-    this.preProductoService.verificarPlanificacionCompleta(preProducto.id).subscribe({
-      next: (resumen) => {
-        const datos = {
-          preProducto: resumen.preProducto,
-          planificacionCompleta: resumen.planificacionCompleta,
-          totalMaquinarias: resumen.totalMaquinarias,
-          tiempoTotalEstimado: resumen.tiempoTotalEstimado
-        };
-        
-        console.log('Datos para exportar:', datos);
-        Swal.fire('Info', 'Función de exportación en desarrollo', 'info');
-      },
-      error: (error) => {
-        console.error('Error al obtener resumen:', error);
-      }
-    });
-  }
+
+exportarResumen(preProducto: PreProducto): void {
+  this.preProductoService.verificarPlanificacionCompleta(preProducto.id).subscribe({
+    next: (resumen) => {
+      const doc = new jsPDF();
+
+      doc.setFontSize(16);
+      doc.text(`Resumen de Planificación`, 14, 20);
+
+      autoTable(doc, {
+        startY: 30,
+        head: [['Campo', 'Valor']],
+        body: [
+          ['PreProducto', resumen.preProducto],
+          ['¿Planificación completa?', resumen.planificacionCompleta ? 'Sí' : 'No'],
+          ['Total de maquinarias', resumen.totalMaquinarias.toString()],
+          ['Tiempo total estimado', `${resumen.tiempoTotalEstimado} horas`],
+        ],
+      });
+
+      doc.save(`Resumen_${resumen.preProducto}.pdf`);
+    },
+    error: (error) => {
+      console.error('Error al obtener resumen:', error);
+      Swal.fire('Error', 'No se pudo exportar el resumen', 'error');
+    }
+  });
+}
+
 
   toggleDropdown(productId: number | null): void {
     if (this.dropdownOpen === productId) {
