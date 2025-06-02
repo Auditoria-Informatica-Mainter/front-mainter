@@ -18,6 +18,8 @@ import { PreProductoComponent } from './pages/pre-producto/pre-producto.componen
 import { PlanoComponent } from './pages/plano/plano.component';
 import { PrePlanoComponent } from './pages/pre-plano/pre-plano.component';
 import { ProductosComponent } from './pages/productos/productos.component';
+import { MaquinariasComponent } from './pages/maquinarias/maquinarias.component';
+import { AsignacionesMaquinariaComponent } from './pages/asignaciones-maquinaria/asignaciones-maquinaria.component';
 
 export const routes: Routes = [
   { path: 'login', component: LoginComponent },
@@ -37,6 +39,8 @@ export const routes: Routes = [
   { path: 'pre-plano', component: PrePlanoComponent },
   { path: 'plano', component: PlanoComponent },
   { path: 'productos', component: ProductosComponent },
+  { path: 'maquinarias', component: MaquinariasComponent },
+  { path: 'asignaciones-maquinaria', component: AsignacionesMaquinariaComponent },
   { path: 'mrp', component: LandingPageComponent },
   { path: 'bitacoras', component: BitacoraComponent },
   // { path: '', redirectTo: 'login', pathMatch: 'full' },  //anterior pagina de inicio por defecto
