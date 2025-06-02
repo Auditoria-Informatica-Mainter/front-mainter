@@ -1,0 +1,118 @@
+<div class="p-4 sm:ml-60 pt-20 bg-gray-50 min-h-screen">
+    <div class="mb-4 flex justify-between items-center">
+        <h1 class="text-2xl font-semibold text-gray-900">Órdenes de Producción</h1>
+        <button (click)="abrirModalNuevo()"
+            class="bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded">
+            Nueva Orden
+        </button>
+    </div>
+
+    <!-- Barra de búsqueda -->
+    <div class="mb-4">
+        <input type="text" [(ngModel)]="filtro" (input)="filtrar()" placeholder="Buscar por descripción..."
+            class="w-full p-2 border rounded-lg">
+    </div>
+
+    <!-- Tabla de órdenes -->
+    <div class="relative overflow-x-auto shadow-md sm:rounded-lg">
+        <table class="w-full text-sm text-left text-gray-500">
+            <thead class="text-xs text-gray-700 uppercase bg-gray-50">
+                <tr>
+                    <th scope="col" class="px-6 py-3">ID</th>
+                    <th scope="col" class="px-6 py-3">Descripción</th>
+                    <th scope="col" class="px-6 py-3">Cantidad</th>
+                    <th scope="col" class="px-6 py-3">Estado</th>
+                    <th scope="col" class="px-6 py-3">Fecha</th>
+                    <th scope="col" class="px-6 py-3">Acciones</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr *ngFor="let orden of Filtrados" class="bg-white border-b hover:bg-gray-50">
+                    <td class="px-6 py-4">{{orden.id}}</td>
+                    <td class="px-6 py-4">{{orden.descripcion}}</td>
+                    <td class="px-6 py-4">{{orden.cantidad}}</td>
+                    <td class="px-6 py-4">{{orden.estado}}</td>
+                    <td class="px-6 py-4">{{orden.fecha | date:'short'}}</td>
+                    <td class="px-6 py-4">
+                        <button (click)="abrirModalEditar(orden)"
+                            class="font-medium text-blue-600 hover:underline">Editar</button>
+                    </td>
+                </tr>
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<!-- Modal Nuevo -->
+<div *ngIf="isModalNuevoOpen"
+    class="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full flex justify-center items-center">
+    <div class="relative bg-white rounded-lg shadow-xl p-8 w-full max-w-md">
+        <h2 class="text-xl font-bold mb-4">Nueva Orden de Producción</h2>
+        <form (ngSubmit)="crearOrden()">
+            <div class="mb-4">
+                <label class="block text-gray-700 text-sm font-bold mb-2">Producto</label>
+                <select [(ngModel)]="ordenNuevo.productoId" name="productoId" class="w-full p-2 border rounded">
+                    <option [ngValue]="0">Seleccione un producto</option>
+                    <option *ngFor="let producto of productos" [value]="producto.id">
+                        {{producto.nombre}}
+                    </option>
+                </select>
+            </div>
+            <div class="mb-4">
+                <label class="block text-gray-700 text-sm font-bold mb-2">Descripción</label>
+                <input type="text" [(ngModel)]="ordenNuevo.descripcion" name="descripcion"
+                    class="w-full p-2 border rounded">
+            </div>
+            <div class="mb-4">
+                <label class="block text-gray-700 text-sm font-bold mb-2">Cantidad</label>
+                <input type="number" [(ngModel)]="ordenNuevo.cantidad" name="cantidad" min="1"
+                    class="w-full p-2 border rounded">
+            </div>
+            <div class="mb-4">
+                <label class="block text-gray-700 text-sm font-bold mb-2">Estado</label>
+                <select [(ngModel)]="ordenNuevo.estado" name="estado" class="w-full p-2 border rounded">
+                    <option *ngFor="let estado of estadosOrden" [value]="estado">{{estado}}</option>
+                </select>
+            </div>
+            <div class="flex justify-end gap-2">
+                <button type="button" (click)="cerrarModalNuevo()"
+                    class="bg-gray-500 hover:bg-gray-700 text-white font-bold py-2 px-4 rounded">
+                    Cancelar
+                </button>
+                <button type="submit" class="bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded">
+                    Crear
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- Modal Editar -->
+<div *ngIf="isModalEditarOpen"
+    class="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full flex justify-center items-center">
+    <div class="relative bg-white rounded-lg shadow-xl p-8 w-full max-w-md">
+        <h2 class="text-xl font-bold mb-4">Editar Orden de Producción</h2>
+        <form (ngSubmit)="actualizarOrden()">
+            <div class="mb-4">
+                <label class="block text-gray-700 text-sm font-bold mb-2">Cantidad</label>
+                <input type="number" [(ngModel)]="ordenEdit.cantidad" name="cantidad" min="1"
+                    class="w-full p-2 border rounded">
+            </div>
+            <div class="mb-4">
+                <label class="block text-gray-700 text-sm font-bold mb-2">Estado</label>
+                <select [(ngModel)]="ordenEdit.estado" name="estado" class="w-full p-2 border rounded">
+                    <option *ngFor="let estado of estadosOrden" [value]="estado">{{estado}}</option>
+                </select>
+            </div>
+            <div class="flex justify-end gap-2">
+                <button type="button" (click)="cerrarModalEditar()"
+                    class="bg-gray-500 hover:bg-gray-700 text-white font-bold py-2 px-4 rounded">
+                    Cancelar
+                </button>
+                <button type="submit" class="bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded">
+                    Actualizar
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
