@@ -1,10 +1,9 @@
 import { Component, OnInit } from '@angular/core';
 import { PreProductoService } from '../../services/pre-producto.service';
 import { PreProducto, PreProductoDTO } from '../../models/preProducto.model';
-import { PreMaquinaria, PreMaquinariaDTO } from '../../models/preMaquinaria.model';
+import { PreMaquinaria, PreMaquinariaDTO, Maquinaria } from '../../models/preMaquinaria.model';
 import { PreMaquinariaService } from '../../services/pre-maquinaria.service';
-import { Maquinaria } from '../../models/preMaquinaria.model';
-import { MaquinariaService } from '../../services/maquinaria.service';
+import { MaquinariasService } from '../../services/maquinarias.service';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import Swal from 'sweetalert2';
@@ -86,7 +85,7 @@ export class PreProductoComponent implements OnInit {
   constructor(
     private preProductoService: PreProductoService,
     private preMaquinariaService: PreMaquinariaService,
-    private maquinariaService: MaquinariaService,
+    private maquinariasService: MaquinariasService,
     private imgDropService: ImgDropService,
   ) {}
 
@@ -116,11 +115,11 @@ export class PreProductoComponent implements OnInit {
   }
 
   cargarMaquinarias(): void {
-    this.maquinariaService.obtenerTodas().subscribe({
-      next: (data) => {
+    this.maquinariasService.getMaquinarias().subscribe({
+      next: (data: any) => {
         this.maquinarias = data;
       },
-      error: (error) => {
+      error: (error: any) => {
         console.error('Error al cargar maquinarias:', error);
       }
     });

@@ -105,6 +105,14 @@
       >
         Descargar Excel
       </button>
+      
+      <button 
+        (click)="descargarReporteComprasCSV()" 
+        class="px-4 py-2 bg-orange-600 text-white font-medium rounded-lg hover:bg-orange-700 focus:ring-4 focus:ring-orange-300"
+        [disabled]="compras.length === 0 || cargandoCompras"
+      >
+        Descargar CSV
+      </button>
     </div>
     
     <!-- Tabla de resultados -->
@@ -227,6 +235,14 @@
         [disabled]="materiales.length === 0 || cargandoMateriales"
       >
         Descargar Excel
+      </button>
+      
+      <button 
+        (click)="descargarReporteProductosCSV()" 
+        class="px-4 py-2 bg-orange-600 text-white font-medium rounded-lg hover:bg-orange-700 focus:ring-4 focus:ring-orange-300"
+        [disabled]="materiales.length === 0 || cargandoMateriales"
+      >
+        Descargar CSV
       </button>
     </div>
     
