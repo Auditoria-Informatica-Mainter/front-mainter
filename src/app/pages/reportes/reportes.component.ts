@@ -556,6 +556,52 @@ export class ReportesComponent implements OnInit {
     }
   }
   
+  descargarReporteComprasCSV(): void {
+    try {
+      // Preparar los encabezados del CSV
+      const headers = ['ID', 'Fecha', 'Proveedor', 'Estado', 'Total (BS)'];
+      
+      // Preparar los datos para el CSV
+      const csvData = this.compras.map(compra => [
+        compra.id,
+        new Date(compra.fecha).toLocaleDateString('es-ES'),
+        this.obtenerNombreProveedor(compra),
+        compra.estado,
+        this.getNumericValue(compra.importe_total, 2)
+      ]);
+      
+      // Añadir fila de total
+      csvData.push(['', '', '', 'TOTAL', this.calcularTotalCompras()]);
+      
+      // Generar el contenido CSV
+      let csvContent = '';
+      
+      // Añadir encabezados
+      csvContent += headers.join(',') + '\n';
+      
+      // Añadir datos
+      csvData.forEach(row => {
+        const escapedRow = row.map(field => {
+          // Escapar comillas y campos que contienen comas
+          const fieldStr = String(field || '');
+          if (fieldStr.includes(',') || fieldStr.includes('"') || fieldStr.includes('\n')) {
+            return '"' + fieldStr.replace(/"/g, '""') + '"';
+          }
+          return fieldStr;
+        });
+        csvContent += escapedRow.join(',') + '\n';
+      });
+      
+      // Crear y descargar el archivo
+      const fechaActual = new Date().toLocaleDateString('es-ES').replace(/\//g, '-');
+      const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+      saveAs(blob, `Reporte_Compras_${fechaActual}.csv`);
+    } catch (error) {
+      console.error('Error al generar CSV de compras:', error);
+      alert('Error al generar el CSV. Por favor, intente nuevamente.');
+    }
+  }
+  
   descargarReporteProductosPDF(): void {
     try {
       // Crear un nuevo documento PDF en formato a4
@@ -633,6 +679,49 @@ export class ReportesComponent implements OnInit {
     } catch (error) {
       console.error('Error al generar Excel de productos:', error);
       alert('Error al generar el Excel. Por favor, intente nuevamente.');
+    }
+  }
+  
+  descargarReporteProductosCSV(): void {
+    try {
+      // Preparar los encabezados del CSV
+      const headers = ['ID', 'Nombre', 'Descripción', 'Stock Actual', 'Stock Mínimo'];
+      
+      // Preparar los datos para el CSV
+      const csvData = this.materiales.map(material => [
+        material.id,
+        material.nombre,
+        material.descripcion || 'Sin descripción',
+        this.getNumericValue(material.stockActual, 0),
+        this.getNumericValue(material.stockMinimo, 0)
+      ]);
+      
+      // Generar el contenido CSV
+      let csvContent = '';
+      
+      // Añadir encabezados
+      csvContent += headers.join(',') + '\n';
+      
+      // Añadir datos
+      csvData.forEach(row => {
+        const escapedRow = row.map(field => {
+          // Escapar comillas y campos que contienen comas
+          const fieldStr = String(field || '');
+          if (fieldStr.includes(',') || fieldStr.includes('"') || fieldStr.includes('\n')) {
+            return '"' + fieldStr.replace(/"/g, '""') + '"';
+          }
+          return fieldStr;
+        });
+        csvContent += escapedRow.join(',') + '\n';
+      });
+      
+      // Crear y descargar el archivo
+      const fechaActual = new Date().toLocaleDateString('es-ES').replace(/\//g, '-');
+      const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+      saveAs(blob, `Reporte_Productos_${fechaActual}.csv`);
+    } catch (error) {
+      console.error('Error al generar CSV de productos:', error);
+      alert('Error al generar el CSV. Por favor, intente nuevamente.');
     }
   }
   
