@@ -10,7 +10,7 @@
     <!-- Barra de búsqueda -->
     <div class="mb-4">
         <input type="text" [(ngModel)]="filtro" (input)="filtrar()" placeholder="Buscar por descripción..."
-            class="w-full p-2 border rounded-lg">
+            class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 text-sm-lg">
     </div>
 
     <!-- Tabla de órdenes -->
@@ -67,35 +67,43 @@
         <form (ngSubmit)="crearOrden()">
             <div class="mb-4">
                 <label class="block text-gray-700 text-sm font-bold mb-2">Producto/Pre-producto</label>
-                <select [(ngModel)]="ordenNuevo.productoId" name="productoId" class="w-full p-2 border rounded">
-                    <option [ngValue]="0">Seleccione un item</option>
-                    <optgroup label="Productos">
+                <select [(ngModel)]="ordenNuevo.productoId" name="productoId"
+                    class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 text-sm max-h-60 overflow-y-auto">
+
+                    <option [ngValue]="0" class="py-1">Seleccione un item</option>
+
+                    <optgroup label="Productos" class="font-semibold bg-gray-100">
                         <option *ngFor="let item of productos" [value]="item.id"
-                            [ngStyle]="{'display': item.tipo !== 'producto' ? 'none' : ''}">
+                            [ngStyle]="{'display': item.tipo !== 'producto' ? 'none' : ''}"
+                            class="py-2 px-3 hover:bg-blue-50">
                             {{item.nombre}}
                         </option>
                     </optgroup>
-                    <optgroup label="Pre-productos">
+
+                    <optgroup label="Pre-productos" class="font-semibold bg-gray-100">
                         <option *ngFor="let item of productos" [value]="item.id"
-                            [ngStyle]="{'display': item.tipo !== 'preproducto' ? 'none' : ''}">
+                            [ngStyle]="{'display': item.tipo !== 'preproducto' ? 'none' : ''}"
+                            class="py-2 px-3 hover:bg-blue-50">
                             {{item.nombre}}
                         </option>
                     </optgroup>
                 </select>
+
             </div>
             <div class="mb-4">
                 <label class="block text-gray-700 text-sm font-bold mb-2">Descripción</label>
                 <input type="text" [(ngModel)]="ordenNuevo.descripcion" name="descripcion"
-                    class="w-full p-2 border rounded">
+                    class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 text-sm">
             </div>
             <div class="mb-4">
                 <label class="block text-gray-700 text-sm font-bold mb-2">Cantidad</label>
                 <input type="number" [(ngModel)]="ordenNuevo.cantidad" name="cantidad" min="1"
-                    class="w-full p-2 border rounded">
+                    class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 text-sm">
             </div>
             <div class="mb-4">
                 <label class="block text-gray-700 text-sm font-bold mb-2">Estado</label>
-                <select [(ngModel)]="ordenNuevo.estado" name="estado" class="w-full p-2 border rounded">
+                <select [(ngModel)]="ordenNuevo.estado" name="estado"
+                    class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 text-sm">
                     <option *ngFor="let estado of estadosOrden" [value]="estado">{{estado}}</option>
                 </select>
             </div>
@@ -123,16 +131,17 @@
             <div class="mb-4">
                 <label class="block text-gray-700 text-sm font-bold mb-2">Descripción</label>
                 <input type="text" [(ngModel)]="ordenEdit.descripcion" name="descripcion"
-                    class="w-full p-2 border rounded">
+                    class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 text-sm">
             </div>
             <div class="mb-4">
                 <label class="block text-gray-700 text-sm font-bold mb-2">Cantidad</label>
                 <input type="number" [(ngModel)]="ordenEdit.cantidad" name="cantidad" min="1"
-                    class="w-full p-2 border rounded">
+                    class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 text-sm">
             </div>
             <div class="mb-4">
                 <label class="block text-gray-700 text-sm font-bold mb-2">Estado</label>
-                <select [(ngModel)]="ordenEdit.estado" name="estado" class="w-full p-2 border rounded">
+                <select [(ngModel)]="ordenEdit.estado" name="estado"
+                    class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 text-sm">
                     <option *ngFor="let estado of estadosOrden" [value]="estado">{{estado}}</option>
                 </select>
             </div>
@@ -148,3 +157,41 @@
         </form>
     </div>
 </div>
+
+<style>
+    select {
+        scrollbar-width: thin;
+        scrollbar-color: #4B5563 #E5E7EB;
+    }
+
+    select::-webkit-scrollbar {
+        width: 8px;
+    }
+
+    select::-webkit-scrollbar-track {
+        background: #E5E7EB;
+        border-radius: 4px;
+    }
+
+    select::-webkit-scrollbar-thumb {
+        background-color: #4B5563;
+        border-radius: 4px;
+        border: 2px solid #E5E7EB;
+    }
+
+    select optgroup {
+        background: #F3F4F6;
+        font-weight: 600;
+        padding: 8px 4px;
+    }
+
+    select option {
+        padding: 8px 12px;
+        cursor: pointer;
+        transition: background-color 0.2s;
+    }
+
+    select option:hover {
+        background-color: #EFF6FF;
+    }
+</style>
