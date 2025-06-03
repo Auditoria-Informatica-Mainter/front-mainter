@@ -20,11 +20,10 @@ export class LoginComponent {
   constructor(private authService: AuthService, private router: Router) {}
 
   onSubmit() {
-    this.authService.login(this.email, this.password).subscribe({
-      next: (res) => {
+    this.authService.login(this.email, this.password).subscribe({      next: (res) => {
         this.authService.guardarToken(res.token);
-        this.authService.guardarDatosUsuario(res.nombre, res.email);
-        
+        this.authService.guardarDatosUsuario(res.nombre, res.email, res.id);
+
         // Alerta de éxito con SweetAlert2
         Swal.fire({
           icon: 'success',
@@ -39,7 +38,7 @@ export class LoginComponent {
       },
       error: (err) => {
         console.error('Error de login:', err);
-        
+
         // Alerta de error con SweetAlert2
         Swal.fire({
           icon: 'error',
