@@ -19,20 +19,36 @@
             <thead class="text-xs text-gray-700 uppercase bg-gray-50">
                 <tr>
                     <th scope="col" class="px-6 py-3">ID</th>
+                    <th scope="col" class="px-6 py-3">Tipo</th>
                     <th scope="col" class="px-6 py-3">Descripción</th>
                     <th scope="col" class="px-6 py-3">Cantidad</th>
                     <th scope="col" class="px-6 py-3">Estado</th>
-                    <th scope="col" class="px-6 py-3">Fecha</th>
+                    <th scope="col" class="px-6 py-3">Fecha y hora</th>
                     <th scope="col" class="px-6 py-3">Acciones</th>
                 </tr>
             </thead>
             <tbody>
                 <tr *ngFor="let orden of Filtrados" class="bg-white border-b hover:bg-gray-50">
                     <td class="px-6 py-4">{{orden.id}}</td>
+                    <td class="px-6 py-4">
+                        <span [class]="orden.tipo === 'producto' ? 'text-blue-600' : 'text-green-600'">
+                            {{orden.tipo === 'producto' ? 'Producto' : 'Pre-producto'}}
+                        </span>
+                    </td>
                     <td class="px-6 py-4">{{orden.descripcion}}</td>
                     <td class="px-6 py-4">{{orden.cantidad}}</td>
-                    <td class="px-6 py-4">{{orden.estado}}</td>
-                    <td class="px-6 py-4">{{orden.fecha | date:'short'}}</td>
+                    <td class="px-6 py-4">
+                        <span [ngClass]="{
+                            'px-3 py-1 rounded-full text-sm font-semibold': true,
+                            'bg-yellow-100 text-yellow-700': orden.estado === 'En proceso',
+                            'bg-green-100 text-green-700': orden.estado === 'Completado',
+                            'bg-red-100 text-red-700': orden.estado === 'Cancelado',
+                            'bg-blue-100 text-blue-700': orden.estado === 'Pendiente'
+                        }">
+                            {{orden.estado}}
+                        </span>
+                    </td>
+                    <td class="px-6 py-4">{{orden.fecha | date:'dd/MM/yyyy HH:mm' : 'BOT'}}</td>
                     <td class="px-6 py-4">
                         <button (click)="abrirModalEditar(orden)"
                             class="font-medium text-blue-600 hover:underline">Editar</button>
@@ -50,12 +66,21 @@
         <h2 class="text-xl font-bold mb-4">Nueva Orden de Producción</h2>
         <form (ngSubmit)="crearOrden()">
             <div class="mb-4">
-                <label class="block text-gray-700 text-sm font-bold mb-2">Producto</label>
+                <label class="block text-gray-700 text-sm font-bold mb-2">Producto/Pre-producto</label>
                 <select [(ngModel)]="ordenNuevo.productoId" name="productoId" class="w-full p-2 border rounded">
-                    <option [ngValue]="0">Seleccione un producto</option>
-                    <option *ngFor="let producto of productos" [value]="producto.id">
-                        {{producto.nombre}}
-                    </option>
+                    <option [ngValue]="0">Seleccione un item</option>
+                    <optgroup label="Productos">
+                        <option *ngFor="let item of productos" [value]="item.id"
+                            [ngStyle]="{'display': item.tipo !== 'producto' ? 'none' : ''}">
+                            {{item.nombre}}
+                        </option>
+                    </optgroup>
+                    <optgroup label="Pre-productos">
+                        <option *ngFor="let item of productos" [value]="item.id"
+                            [ngStyle]="{'display': item.tipo !== 'preproducto' ? 'none' : ''}">
+                            {{item.nombre}}
+                        </option>
+                    </optgroup>
                 </select>
             </div>
             <div class="mb-4">
@@ -91,7 +116,9 @@
 <div *ngIf="isModalEditarOpen"
     class="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full flex justify-center items-center">
     <div class="relative bg-white rounded-lg shadow-xl p-8 w-full max-w-md">
-        <h2 class="text-xl font-bold mb-4">Editar Orden de Producción #{{ordenEdit.id}}</h2>
+        <h2 class="text-xl font-bold mb-4">
+            Editar Orden de {{ordenEdit.tipo === 'producto' ? 'Producto' : 'Pre-producto'}} #{{ordenEdit.id}}
+        </h2>
         <form (ngSubmit)="actualizarOrden()">
             <div class="mb-4">
                 <label class="block text-gray-700 text-sm font-bold mb-2">Descripción</label>
