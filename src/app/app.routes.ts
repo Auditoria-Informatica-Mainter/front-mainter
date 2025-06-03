@@ -22,6 +22,8 @@ import { MaquinariasComponent } from './pages/maquinarias/maquinarias.component'
 import { AsignacionesMaquinariaComponent } from './pages/asignaciones-maquinaria/asignaciones-maquinaria.component';
 import { PedidosComponent } from './pages/pedidos/pedidos.component';
 import { MetodosPagoComponent } from './pages/metodos-pago/metodos-pago.component';
+import { OrdenProductoComponent } from './pages/orden-producto/orden-producto.component';
+
 
 export const routes: Routes = [
   { path: 'login', component: LoginComponent },
@@ -33,7 +35,7 @@ export const routes: Routes = [
   { path: 'proveedores', component: ProveedoresComponent },
   { path: 'proveedorMaterial', component: ProveedorMaterialComponent },
   { path: 'almacen', component: AlmacenComponent },
-  { path: 'sector', component: SectorComponent },  { path: 'materiales', component: MaterialesComponent },
+  { path: 'sector', component: SectorComponent }, { path: 'materiales', component: MaterialesComponent },
   { path: 'compras', component: ComprasComponent },
   { path: 'reportes', component: ReportesComponent },
   { path: 'pre-producto', component: PreProductoComponent },
@@ -46,6 +48,7 @@ export const routes: Routes = [
   { path: 'metodos-pago', component: MetodosPagoComponent },
   { path: 'mrp', component: LandingPageComponent },
   { path: 'bitacoras', component: BitacoraComponent },
+  { path: 'ordenes', component: OrdenProductoComponent },
   // { path: '', redirectTo: 'login', pathMatch: 'full' },  //anterior pagina de inicio por defecto
   { path: '', redirectTo: 'mrp', pathMatch: 'full' },
   { path: '**', redirectTo: '/mrp' },
