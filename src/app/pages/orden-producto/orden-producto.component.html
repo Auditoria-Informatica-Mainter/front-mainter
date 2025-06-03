@@ -91,8 +91,13 @@
 <div *ngIf="isModalEditarOpen"
     class="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full flex justify-center items-center">
     <div class="relative bg-white rounded-lg shadow-xl p-8 w-full max-w-md">
-        <h2 class="text-xl font-bold mb-4">Editar Orden de Producción</h2>
+        <h2 class="text-xl font-bold mb-4">Editar Orden de Producción #{{ordenEdit.id}}</h2>
         <form (ngSubmit)="actualizarOrden()">
+            <div class="mb-4">
+                <label class="block text-gray-700 text-sm font-bold mb-2">Descripción</label>
+                <input type="text" [(ngModel)]="ordenEdit.descripcion" name="descripcion"
+                    class="w-full p-2 border rounded">
+            </div>
             <div class="mb-4">
                 <label class="block text-gray-700 text-sm font-bold mb-2">Cantidad</label>
                 <input type="number" [(ngModel)]="ordenEdit.cantidad" name="cantidad" min="1"

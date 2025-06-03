@@ -61,15 +61,18 @@ export class OrdenProductoComponent implements OnInit {
   ) { }
 
   ngOnInit(): void {
+    console.log('Iniciando componente...');
     this.obtenerProductos();
     this.obtenerOrdenes();
   }
 
   obtenerOrdenes(): void {
+    console.log('Obteniendo órdenes...');
     Swal.fire({ title: 'Cargando órdenes...', allowOutsideClick: false, didOpen: () => Swal.showLoading() });
 
     this.ordenProductoService.getOrdenesProductos().subscribe({
       next: (data) => {
+        console.log('Órdenes recibidas:', data);
         this.ordenesProductos = data;
         this.Filtrados = data;
         Swal.close();
@@ -82,10 +85,12 @@ export class OrdenProductoComponent implements OnInit {
   }
 
   obtenerProductos(): void {
+    console.log('Obteniendo productos...');
     Swal.fire({ title: 'Cargando productos...', allowOutsideClick: false, didOpen: () => Swal.showLoading() });
 
     this.productoService.getProductos().subscribe({
       next: (data) => {
+        console.log('Productos recibidos:', data);
         this.productos = data;
         Swal.close();
       },
@@ -104,12 +109,16 @@ export class OrdenProductoComponent implements OnInit {
   }
 
   abrirModalNuevo(): void {
+    console.log('Abriendo modal nuevo...');
+    const usuarioId = this.authService.obtenerUsuarioId();
+    console.log('ID de usuario:', usuarioId);
+
     this.ordenNuevo = {
       descripcion: '',
       cantidad: 0,
       fecha: new Date().toISOString(),
       estado: 'En proceso',
-      usuarioId: this.authService.obtenerUsuarioId(),
+      usuarioId: usuarioId,
       productoId: 0
     };
     this.isModalNuevoOpen = true;
@@ -125,6 +134,12 @@ export class OrdenProductoComponent implements OnInit {
       return;
     }
 
+    if (this.ordenNuevo.cantidad <= 0) {
+      Swal.fire('Error', 'La cantidad debe ser mayor a 0', 'error');
+      return;
+    }
+
+    console.log('Creando orden:', this.ordenNuevo);
     Swal.fire({
       title: 'Creando orden...',
       allowOutsideClick: false,
@@ -133,6 +148,7 @@ export class OrdenProductoComponent implements OnInit {
 
     this.ordenProductoService.createOrdenProducto(this.ordenNuevo).subscribe({
       next: (resp) => {
+        console.log('Orden creada:', resp);
         Swal.fire({
           position: "center",
           icon: "success",
@@ -151,7 +167,18 @@ export class OrdenProductoComponent implements OnInit {
   }
 
   abrirModalEditar(orden: OrdenProducto): void {
-    this.ordenEdit = { ...orden };
+    console.log('Abriendo modal editar:', orden);
+    // Copiamos directamente los datos de la orden recibida
+    this.ordenEdit = {
+      id: orden.id,
+      cantidad: orden.cantidad,
+      descripcion: orden.descripcion,
+      estado: orden.estado,
+      fecha: orden.fecha,
+      usuarioId: orden.usuarioId || 1, // Valor por defecto si no existe
+      productoId: orden.productoId || 1 // Valor por defecto si no existe
+    };
+    console.log('Datos para edición:', this.ordenEdit);
     this.isModalEditarOpen = true;
   }
 
@@ -160,19 +187,35 @@ export class OrdenProductoComponent implements OnInit {
   }
 
   actualizarOrden(): void {
+    if (this.ordenEdit.cantidad <= 0) {
+      Swal.fire('Error', 'La cantidad debe ser mayor a 0', 'error');
+      return;
+    }
+
+    if (!this.ordenEdit.id) {
+      Swal.fire('Error', 'ID de orden no válido', 'error');
+      return;
+    }
+
+    // Aseguramos que se mantengan todos los campos originales
     const ordenActualizada: OrdenProducto = {
-      ...this.ordenEdit,
-      usuarioId: this.ordenEdit.usuarioId, // Mantenemos el mismo usuario
-      productoId: this.ordenEdit.productoId // Mantenemos el mismo producto
+      id: this.ordenEdit.id,
+      cantidad: this.ordenEdit.cantidad,
+      descripcion: this.ordenEdit.descripcion,
+      estado: this.ordenEdit.estado,
+      fecha: this.ordenEdit.fecha,
+      usuarioId: this.ordenEdit.usuarioId,
+      productoId: this.ordenEdit.productoId
     };
 
+    console.log('Actualizando orden:', ordenActualizada);
     Swal.fire({
       title: 'Actualizando orden...',
       allowOutsideClick: false,
       didOpen: () => Swal.showLoading()
     });
 
-    this.ordenProductoService.updateOrdenProducto(ordenActualizada.id, ordenActualizada).subscribe({
+    this.ordenProductoService.updateOrdenProducto(this.ordenEdit.id, ordenActualizada).subscribe({
       next: () => {
         Swal.fire({
           position: "center",
@@ -186,7 +229,7 @@ export class OrdenProductoComponent implements OnInit {
       },
       error: (err) => {
         console.error('Error al actualizar la orden', err);
-        Swal.fire('Error', 'No se pudo actualizar la orden', 'error');
+        Swal.fire('Error', err.error?.message || 'No se pudo actualizar la orden', 'error');
       }
     });
   }

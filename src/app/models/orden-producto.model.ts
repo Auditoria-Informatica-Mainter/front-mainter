@@ -4,8 +4,8 @@ export interface OrdenProducto {
     descripcion: string;
     estado: string;
     fecha: string;
-    usuarioId: number;
-    productoId: number;
+    usuarioId?: number;
+    productoId?: number;
 }
 
 export interface OrdenProductoDTO {
@@ -15,6 +15,12 @@ export interface OrdenProductoDTO {
     fecha: string;
     usuarioId: number;
     productoId: number;
+}
+
+export interface ApiResponse<T> {
+    statusCode: number;
+    message: string;
+    data: T;
 }
 
 export const ESTADOS_ORDEN = [
