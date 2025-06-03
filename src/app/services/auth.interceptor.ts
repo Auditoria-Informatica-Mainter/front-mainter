@@ -6,7 +6,7 @@ import { catchError, throwError } from 'rxjs';
 
 export const authInterceptor: HttpInterceptorFn = (req, next) => {
   const authService = inject(AuthService);
-  const router = inject(Router);  const token = authService.obtenerToken();
+  const router = inject(Router); const token = authService.obtenerToken();
 
   // Excluir Cloudinary y Login
   const isCloudinary = req.url.includes('api.cloudinary.com');
@@ -25,8 +25,8 @@ export const authInterceptor: HttpInterceptorFn = (req, next) => {
   const authReq = isPublic || !token
     ? req
     : req.clone({
-        headers: req.headers.set('Authorization', `Bearer ${token}`)
-      });
+      headers: req.headers.set('Authorization', `Bearer ${token}`)
+    });
 
   return next(authReq).pipe(
     catchError((error: HttpErrorResponse) => {
