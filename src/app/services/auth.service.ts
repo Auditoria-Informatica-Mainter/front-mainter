@@ -14,7 +14,7 @@ export class AuthService {
   login(email: string, password: string): Observable<any> {
     return this.http.post<any>(`${this.apiUrl}auth/login`, { email, password });
   }
-  
+
  // Método de registro (NUEVO)
 // En auth.service.ts
 registroAdmin(nombre: string, apellido: string, telefono: string, email: string, password: string) {
@@ -25,7 +25,7 @@ registroAdmin(nombre: string, apellido: string, telefono: string, email: string,
     email,
     password
   };
-  
+
   return this.http.post<any>(`${this.apiUrl}auth/registerAdmin`, usuarioDTO);
 }
   private token: string | null = null;
@@ -45,10 +45,12 @@ registroAdmin(nombre: string, apellido: string, telefono: string, email: string,
   cerrarSesion() {
     localStorage.removeItem('token');
   }
-
-  guardarDatosUsuario(nombre: string, email: string) {
+  guardarDatosUsuario(nombre: string, email: string, userId?: number) {
     localStorage.setItem('nombre', nombre);
     localStorage.setItem('email', email);
+    if (userId) {
+      localStorage.setItem('userId', userId.toString());
+    }
   }
 
   obtenerNombre(): string {
@@ -58,7 +60,7 @@ registroAdmin(nombre: string, apellido: string, telefono: string, email: string,
   obtenerEmail(): string {
     return localStorage.getItem('email') || '';
   }
-  
+
   obtenerUsuarioId(): number {
     return Number(localStorage.getItem('userId')) || 1; // Valor por defecto 1 si no está establecido
   }
