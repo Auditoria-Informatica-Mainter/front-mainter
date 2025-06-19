@@ -56,16 +56,19 @@ export class StripeService {
   // Crear sesión de checkout de Stripe
   crearCheckoutSession(checkoutData: StripeCheckoutRequest): Observable<StripeResponse> {
     return this.http.post<StripeResponse>(`${this.apiUrl}/create-checkout-session`, checkoutData);
-  }
-  // Verificar estado de pago en Stripe
+  }  // Verificar estado de pago en Stripe
   verificarPago(sessionId: string): Observable<StripeVerifyResponse> {
-    return this.http.get<StripeVerifyResponse>(`${this.apiUrl}/verify-payment/${sessionId}`);
+    const url = `${this.apiUrl}/verify-payment/${sessionId}`;
+    console.log('🔍 Llamando verificarPago:', url);
+    return this.http.get<StripeVerifyResponse>(url);
   }
 
   // Confirmar pago de Stripe (actualizado según documentación)
   confirmarPago(sessionId: string, orderId?: string): Observable<StripeConfirmResponse> {
+    const url = `${this.apiUrl}/confirm-payment`;
     const body = { sessionId, orderId };
-    return this.http.post<StripeConfirmResponse>(`${this.apiUrl}/confirm-payment`, body);
+    console.log('✅ Llamando confirmarPago:', { url, body });
+    return this.http.post<StripeConfirmResponse>(url, body);
   }
 
   // Obtener configuración pública de Stripe

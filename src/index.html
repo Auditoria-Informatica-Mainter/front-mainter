@@ -9,22 +9,22 @@
 </head>
 <body>
   <app-root></app-root>
-
-  <!-- ✅ SOLUCIÓN SIMPLE: Script que garantiza retorno a /pedidos desde Stripe -->
+  <!-- ✅ SCRIPT: Garantiza retorno a /pedidos desde Stripe PRESERVANDO parámetros -->
   <script>
     (function() {
       // Solo ejecutar si hay parámetros de Stripe en la URL
       if (window.location.search.includes('session_id') || window.location.search.includes('payment=')) {
-        console.log('🔄 SCRIPT: Detectado retorno de Stripe, forzando a /pedidos');
+        console.log('🔄 SCRIPT: Detectado retorno de Stripe, preservando parámetros');
 
-        // Cambiar la URL inmediatamente
+        // Si NO estamos en /pedidos, redirigir CON los parámetros
         if (window.location.pathname !== '/pedidos') {
-          console.log('🔄 SCRIPT: Redirigiendo desde', window.location.pathname, 'a /pedidos');
-          window.location.href = '/pedidos';
+          console.log('🔄 SCRIPT: Redirigiendo desde', window.location.pathname, 'a /pedidos CON parámetros');
+          const params = window.location.search;
+          window.location.href = '/pedidos' + params;
         } else {
-          // Ya estamos en /pedidos, solo limpiar parámetros
-          window.history.replaceState({}, document.title, '/pedidos');
-          console.log('✅ SCRIPT: Ya en /pedidos, URL limpiada');
+          // Ya estamos en /pedidos, MANTENER los parámetros para que Angular los procese
+          console.log('✅ SCRIPT: Ya en /pedidos, manteniendo parámetros para Angular:', window.location.search);
+          // NO limpiar la URL aquí - dejar que Angular la procese
         }
       }
     })();

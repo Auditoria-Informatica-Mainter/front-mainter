@@ -1,7 +1,7 @@
 import { Component, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule, ReactiveFormsModule, FormBuilder, FormGroup, FormArray, Validators } from '@angular/forms';
-import { Router } from '@angular/router';
+import { Router, ActivatedRoute } from '@angular/router';
 import { PedidoService } from '../../services/pedido.service';
 import { DetallePedidoService } from '../../services/detalle-pedido.service';
 import { MetodoPagoService } from '../../services/metodo-pago.service';
@@ -34,7 +34,6 @@ export class PedidosComponent implements OnInit {
 
   // Tipo de cambio USD a BOB (Bolivianos bolivianos)
   tipoCambioUSDaBOB: number = 6.94; // Actualizable según el tipo de cambio actual
-
   constructor(
     private pedidoService: PedidoService,
     private detallePedidoService: DetallePedidoService,
@@ -43,7 +42,8 @@ export class PedidosComponent implements OnInit {
     private authService: AuthService,
     private stripeService: StripeService,
     private formBuilder: FormBuilder,
-    private router: Router
+    private router: Router,
+    private activatedRoute: ActivatedRoute
   ) {
     this.pedidoForm = this.formBuilder.group({
       fecha: ['', [Validators.required]],      descripcion: [''],
@@ -53,61 +53,130 @@ export class PedidosComponent implements OnInit {
       metodo_pago_id: ['', [Validators.required]],
       detalle_pedidos: this.formBuilder.array([])
     });
-  }
-
-  ngOnInit(): void {
+  }  ngOnInit(): void {
     console.log('🚀 Iniciando componente de pedidos');
+    console.log('🔗 URL completa actual:', window.location.href);
+    console.log('🔗 Search params:', window.location.search);
+    console.log('🔗 Hash:', window.location.hash);
+    console.log('🔗 Pathname:', window.location.pathname);
 
-    // ✅ Verificar retorno de Stripe según documentación
+    // También verificar con ActivatedRoute
+    this.activatedRoute.queryParams.subscribe(params => {
+      console.log('🅰️ Angular Route Query Params:', params);
+    });
+
+    // ✅ Verificar retorno de Stripe según documentación  
     this.verificarRetornoDePago();
 
     this.cargarDatos();
-  }
-
-  // ✅ Manejo de retorno de Stripe según documentación
+  }// ✅ Manejo de retorno de Stripe según documentación
   verificarRetornoDePago(): void {
+    console.log('🔍 Iniciando verificación de retorno de pago...');
+    
     // Verificar si hay parámetros de pago en la URL
-    const params = new URLSearchParams(window.location.search);
+    const fullUrl = window.location.href;
+    const search = window.location.search;
+    
+    console.log('📋 URL Analysis:', {
+      fullUrl: fullUrl,
+      search: search,
+      includes_payment: fullUrl.includes('payment='),
+      includes_session_id: fullUrl.includes('session_id='),
+      includes_order_id: fullUrl.includes('order_id='),
+      includes_pedido_id: fullUrl.includes('pedido_id=')
+    });
+
+    // Método más robusto para detectar parámetros
+    const params = new URLSearchParams(search);
     const paymentStatus = params.get('payment');
     const sessionId = params.get('session_id');
-    const orderId = params.get('order_id');
+    const orderId = params.get('order_id') || params.get('pedido_id');
 
-    if (paymentStatus && sessionId) {
-      console.log('🔍 Detectado retorno de Stripe:', { paymentStatus, sessionId, orderId });
+    // También intentar parsing manual como backup
+    const manualPayment = this.extractParamFromUrl(fullUrl, 'payment');
+    const manualSessionId = this.extractParamFromUrl(fullUrl, 'session_id');
+    const manualOrderId = this.extractParamFromUrl(fullUrl, 'order_id') || this.extractParamFromUrl(fullUrl, 'pedido_id');
 
-      if (paymentStatus === 'success') {
+    console.log('🔍 Parámetros detectados (URLSearchParams):', { 
+      paymentStatus, 
+      sessionId, 
+      orderId
+    });
+
+    console.log('🔍 Parámetros detectados (parsing manual):', { 
+      manualPayment, 
+      manualSessionId, 
+      manualOrderId
+    });
+
+    // Usar los valores que encontremos (preferir URLSearchParams, fallback a manual)
+    const finalPaymentStatus = paymentStatus || manualPayment;
+    const finalSessionId = sessionId || manualSessionId;
+    const finalOrderId = orderId || manualOrderId;
+
+    console.log('🎯 Parámetros finales a usar:', {
+      finalPaymentStatus,
+      finalSessionId,
+      finalOrderId
+    });
+
+    if (finalPaymentStatus && finalSessionId) {
+      console.log('✅ Detectado retorno de Stripe:', { 
+        paymentStatus: finalPaymentStatus, 
+        sessionId: finalSessionId, 
+        orderId: finalOrderId 
+      });
+
+      if (finalPaymentStatus === 'success') {
         // ✅ Pago exitoso - confirmar automáticamente
-        this.confirmarPagoExitoso(sessionId, orderId);
-      } else if (paymentStatus === 'cancelled') {
+        this.confirmarPagoExitoso(finalSessionId, finalOrderId);
+      } else if (finalPaymentStatus === 'cancelled') {
         // ❌ Pago cancelado
-        this.mostrarMensajeCancelacion(orderId);
+        this.mostrarMensajeCancelacion(finalOrderId);
       }
 
       // Limpiar parámetros de la URL para que no se procese de nuevo
       const cleanUrl = window.location.pathname;
       window.history.replaceState({}, document.title, cleanUrl);
+    } else {
+      console.log('ℹ️ No se detectaron parámetros de pago en la URL');
+      console.log('📝 Esto es normal si no vienes de un pago de Stripe');
     }
   }
 
+  // Helper method para extraer parámetros manualmente
+  private extractParamFromUrl(url: string, paramName: string): string | null {
+    const regex = new RegExp(`[?&]${paramName}=([^&#]*)`);
+    const match = url.match(regex);
+    return match ? decodeURIComponent(match[1]) : null;
+  }
   // ✅ Confirmar pago exitoso según documentación
   async confirmarPagoExitoso(sessionId: string, orderId: string | null): Promise<void> {
+    console.log('🔄 Iniciando confirmación de pago exitoso...', { sessionId, orderId });
     this.cargando = true;
 
     try {
-      console.log('🔄 Confirmando pago exitoso...');
+      console.log('� Llamando a verificarPago con sessionId:', sessionId);
 
       // Paso 1: Verificar que el pago realmente fue exitoso en Stripe
       this.stripeService.verificarPago(sessionId).subscribe({
         next: (verifyResult) => {
-          console.log('📊 Resultado verificación:', verifyResult);
+          console.log('📊 Resultado verificación completo:', JSON.stringify(verifyResult, null, 2));
 
           if (verifyResult.success && verifyResult.is_paid) {
+            console.log('✅ Pago verificado como exitoso, procediendo a confirmar...');
+            
+            const orderIdToUse = orderId || verifyResult.order_id?.toString();
+            console.log('📝 Order ID a usar para confirmación:', orderIdToUse);
+
             // Paso 2: Confirmar el pago en el backend y actualizar el pedido
-            this.stripeService.confirmarPago(sessionId, orderId || verifyResult.order_id?.toString()).subscribe({
+            this.stripeService.confirmarPago(sessionId, orderIdToUse).subscribe({
               next: (confirmResult) => {
-                console.log('✅ Resultado confirmación:', confirmResult);
+                console.log('✅ Resultado confirmación completo:', JSON.stringify(confirmResult, null, 2));
 
                 if (confirmResult.success) {
+                  console.log('🎉 Pago confirmado exitosamente, actualizando UI...');
+                  
                   // Mostrar mensaje de éxito
                   Swal.fire({
                     title: '🎉 ¡Pago Exitoso!',
@@ -126,46 +195,80 @@ export class PedidosComponent implements OnInit {
 
                   // Limpiar localStorage
                   localStorage.removeItem('pending_payment');
+                  console.log('🧹 localStorage limpiado');
 
                   // Recargar la lista de pedidos para mostrar el estado actualizado
-                  this.cargarPedidos();
+                  console.log('🔄 Recargando lista de pedidos...');
+                  this.cargarPedidos().then(() => {
+                    console.log('✅ Lista de pedidos recargada exitosamente');
+                    this.cargando = false;
+                  }).catch((error) => {
+                    console.error('❌ Error recargando pedidos:', error);
+                    this.cargando = false;
+                  });
                 } else {
+                  console.error('❌ Error en confirmación:', confirmResult.error);
                   throw new Error(confirmResult.error || 'Error confirmando pago en el backend');
                 }
               },
-              error: (error) => this.manejarErrorConfirmacion(error)
+              error: (error) => {
+                console.error('❌ Error en llamada de confirmación:', error);
+                this.manejarErrorConfirmacion(error);
+              }
             });
           } else {
+            console.error('❌ El pago no fue completado:', { 
+              success: verifyResult.success, 
+              is_paid: verifyResult.is_paid,
+              payment_status: verifyResult.payment_status 
+            });
             throw new Error('El pago no fue completado exitosamente en Stripe');
           }
         },
-        error: (error) => this.manejarErrorConfirmacion(error)
+        error: (error) => {
+          console.error('❌ Error en llamada de verificación:', error);
+          this.manejarErrorConfirmacion(error);
+        }
       });
 
     } catch (error) {
+      console.error('❌ Error general en confirmarPagoExitoso:', error);
       this.manejarErrorConfirmacion(error);
-    } finally {
-      this.cargando = false;
     }
   }
-
   // ✅ Manejar errores de confirmación
   private manejarErrorConfirmacion(error: any): void {
-    console.error('❌ Error confirmando pago:', error);
+    console.error('❌ Error confirmando pago (detallado):', {
+      error: error,
+      message: error.message,
+      status: error.status,
+      statusText: error.statusText,
+      errorBody: error.error,
+      url: error.url
+    });
+    
     this.cargando = false;
-
+    
     let errorMessage = 'Error confirmando pago';
     if (error.error?.message) {
       errorMessage = error.error.message;
     } else if (error.message) {
       errorMessage = error.message;
+    } else if (error.status === 404) {
+      errorMessage = 'Endpoint no encontrado. Verifique que el backend esté ejecutándose.';
+    } else if (error.status === 500) {
+      errorMessage = 'Error interno del servidor. Verifique los logs del backend.';
     }
-
+    
     Swal.fire({
       title: 'Error confirmando pago',
       html: `
-        <p>${errorMessage}</p>
+        <p><strong>Error:</strong> ${errorMessage}</p>
         <p><small>Por favor, verifica el estado de tu pedido o contacta soporte.</small></p>
+        <details style="margin-top: 10px;">
+          <summary>Detalles técnicos</summary>
+          <pre style="text-align: left; font-size: 12px;">${JSON.stringify(error, null, 2)}</pre>
+        </details>
       `,
       icon: 'error',
       confirmButtonText: 'Entendido'
