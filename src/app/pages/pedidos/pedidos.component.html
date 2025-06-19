@@ -370,56 +370,40 @@
           <span class="font-medium">Total:</span> ${{ pedidoDetalle.importe_total | number:'1.2-2' }} USD
           <div class="text-sm text-gray-600 ml-2">{{ obtenerPrecioEnBolivianos(pedidoDetalle.importe_total) }}</div>
         </div>
-      </div>      <!-- Detalles -->
+      </div>
+
+      <!-- Detalles -->
       <div>
         <h4 class="font-semibold mb-3">Items del Pedido</h4>
-
-        <!-- Debug Info (Solo en desarrollo) -->
-        <div class="mb-4 p-3 bg-yellow-50 border-l-4 border-yellow-400 text-sm" *ngIf="pedidoDetalle.detalle_pedidos && pedidoDetalle.detalle_pedidos.length === 0">
-          <p class="text-yellow-700">⚠️ No hay detalles para mostrar</p>
-        </div>
-
-        <div class="overflow-x-auto" *ngIf="pedidoDetalle.detalle_pedidos && pedidoDetalle.detalle_pedidos.length > 0">
+        <div class="overflow-x-auto">
           <table class="min-w-full table-auto border border-gray-300">
             <thead class="bg-gray-100">
               <tr>
                 <th class="px-4 py-2 text-left">Producto</th>
                 <th class="px-4 py-2 text-center">Cantidad</th>
-                <th class="px-4 py-2 text-right">Precio Unitario</th>
-                <th class="px-4 py-2 text-right">Subtotal</th>
+                <th class="px-4 py-2 text-right">Precio</th>
+                <th class="px-4 py-2 text-right">Importe</th>
                 <th class="px-4 py-2 text-center">Estado</th>
               </tr>
             </thead>
             <tbody>
-              <tr *ngFor="let detalle of pedidoDetalle.detalle_pedidos; trackBy: trackByDetalleId" class="border-t">
-                <td class="px-4 py-2">
-                  <div class="font-medium">{{ obtenerNombreProducto(detalle.producto) }}</div>
-                  <div class="text-xs text-gray-500" *ngIf="detalle.producto?.descripcion">
-                    {{ detalle.producto.descripcion }}
-                  </div>
-                </td>
-                <td class="px-4 py-2 text-center font-medium">{{ detalle.cantidad }}</td>
-                <td class="px-4 py-2 text-right">
-                  <div class="font-medium">${{ detalle.precio_unitario | number:'1.2-2' }} USD</div>
-                  <div class="text-xs text-gray-500">{{ obtenerPrecioEnBolivianos(detalle.precio_unitario) }}</div>
+              <tr *ngFor="let detalle of pedidoDetalle.detalle_pedidos" class="border-t">
+                <td class="px-4 py-2">{{ obtenerNombreProducto(detalle.producto?.id) }}</td>
+                <td class="px-4 py-2 text-center">{{ detalle.cantidad }}</td>                <td class="px-4 py-2 text-right">
+                  <div>${{ detalle.precioUnitario | number:'1.2-2' }} USD</div>
+                  <div class="text-xs text-gray-500">{{ obtenerPrecioEnBolivianos(detalle.precioUnitario) }}</div>
                 </td>
                 <td class="px-4 py-2 text-right">
-                  <div class="font-medium">${{ detalle.subtotal | number:'1.2-2' }} USD</div>
-                  <div class="text-xs text-gray-500">{{ obtenerPrecioEnBolivianos(detalle.subtotal) }}</div>
-                </td>
-                <td class="px-4 py-2 text-center">
-                  <span [class]="detalle.estado ? 'px-2 py-1 bg-green-100 text-green-800 rounded-full text-xs' : 'px-2 py-1 bg-red-100 text-red-800 rounded-full text-xs'">
+                  <div>${{ detalle.importe_total | number:'1.2-2' }} USD</div>
+                  <div class="text-xs text-gray-500">{{ obtenerPrecioEnBolivianos(detalle.importe_total) }}</div>
+                </td><td class="px-4 py-2 text-center">
+                  <span [class]="detalle.estado ? 'text-green-600' : 'text-yellow-600'">
                     {{ detalle.estado ? 'Activo' : 'Inactivo' }}
                   </span>
                 </td>
               </tr>
             </tbody>
           </table>
-        </div>
-
-        <!-- Mensaje si no hay detalles -->
-        <div class="text-center py-8 text-gray-500" *ngIf="!pedidoDetalle.detalle_pedidos || pedidoDetalle.detalle_pedidos.length === 0">
-          <p>No hay productos en este pedido</p>
         </div>
       </div>
     </div>

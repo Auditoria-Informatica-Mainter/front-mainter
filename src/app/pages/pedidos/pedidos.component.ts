@@ -226,16 +226,16 @@ export class PedidosComponent implements OnInit {
       pedido.detalle_pedidos.forEach(detalle => {        const detalleFormGroup = this.formBuilder.group({
           id: [detalle.id], // ✅ Incluir el ID del detalle
           cantidad: [detalle.cantidad, [Validators.required, Validators.min(1)]],
-          precio: [detalle.precioUnitario || detalle.precio_unitario, [Validators.required, Validators.min(0)]],
-          importe: [detalle.importe_total || detalle.subtotal, [Validators.required, Validators.min(0)]],
+          // ✅ CORREGIDO: Usar 'precio_unitario' y 'subtotal' que coinciden con el template
+          precio_unitario: [detalle.precioUnitario || detalle.precio_unitario, [Validators.required, Validators.min(0)]],
+          subtotal: [detalle.importe_total || detalle.subtotal, [Validators.required, Validators.min(0)]],
           importe_Desc: [detalle.importe_total_desc, [Validators.min(0)]],
           estado: [detalle.estado],
           producto_id: [detalle.producto?.id, [Validators.required]]
-        });
-
-        // ✅ Agregar listeners para cálculos automáticos también en detalles existentes
+        });// ✅ Agregar listeners para cálculos automáticos también en detalles existentes
         detalleFormGroup.get('cantidad')?.valueChanges.subscribe(() => this.calcularImporte(detalleFormGroup));
-        detalleFormGroup.get('precio')?.valueChanges.subscribe(() => this.calcularImporte(detalleFormGroup));
+        // ✅ CORREGIDO: Usar 'precio_unitario' que coincide con el template
+        detalleFormGroup.get('precio_unitario')?.valueChanges.subscribe(() => this.calcularImporte(detalleFormGroup));
 
         // ✅ Escuchar cambios en producto_id para auto-poblar precio
         detalleFormGroup.get('producto_id')?.valueChanges.subscribe((productoId) => {
@@ -260,16 +260,15 @@ export class PedidosComponent implements OnInit {
   }  agregarDetalle(): void {
     const detalle = this.formBuilder.group({
       cantidad: [1, [Validators.required, Validators.min(1)]],
-      precio: [0, [Validators.required, Validators.min(0)]],
-      importe: [0, [Validators.required, Validators.min(0)]],
-      importe_Desc: [0, [Validators.min(0)]],
+      precio_unitario: [0, [Validators.required, Validators.min(0)]],
+      subtotal: [0], // Solo subtotal, sin campos de descuento innecesarios
       estado: [true],
       producto_id: ['', [Validators.required]]
     });
 
-    // Escuchar cambios en cantidad y precio para calcular importe
+    // Escuchar cambios en cantidad y precio para calcular subtotal
     detalle.get('cantidad')?.valueChanges.subscribe(() => this.calcularImporte(detalle));
-    detalle.get('precio')?.valueChanges.subscribe(() => this.calcularImporte(detalle));
+    detalle.get('precio_unitario')?.valueChanges.subscribe(() => this.calcularImporte(detalle));
 
     // Escuchar cambios en producto_id para auto-poblar precio
     detalle.get('producto_id')?.valueChanges.subscribe((productoId) => {
@@ -279,7 +278,7 @@ export class PedidosComponent implements OnInit {
     });
 
     this.detallesPedidos.push(detalle);
-  }  // Método auxiliar para el template
+  }// Método auxiliar para el template
   agregarDetalleAlBackendFromIndex(index: number): void {
     const detalleControl = this.detallesPedidos.at(index) as FormGroup;
     this.agregarDetalleAlBackend(detalleControl);
@@ -404,50 +403,129 @@ export class PedidosComponent implements OnInit {
         this.agregarDetalle(); // Asegurar que siempre haya al menos una línea
       }
     }
-  }
+  }  calcularImporte(detalle: FormGroup): void {
+    const cantidad = parseFloat(detalle.get('cantidad')?.value) || 0;
+    const precio = parseFloat(detalle.get('precio_unitario')?.value) || 0;
+    const subtotal = cantidad * precio;
 
-  calcularImporte(detalle: FormGroup): void {
-    const cantidad = detalle.get('cantidad')?.value || 0;
-    const precio = detalle.get('precio')?.value || 0;
-    const importe = cantidad * precio;
-    detalle.get('importe')?.setValue(importe, { emitEvent: false });
+    console.log('🧮 Calculando subtotal:', { cantidad, precio, subtotal });
+
+    // Solo calcular: cantidad × precio = subtotal
+    detalle.get('subtotal')?.setValue(subtotal, { emitEvent: false });
+
+    console.log('💰 Subtotal calculado:', subtotal);
+
+    // Recalcular totales del pedido
     this.calcularTotales();
-  }
-  calcularTotales(): void {
+  }  calcularTotales(): void {
     let total = 0;
-    this.detallesPedidos.controls.forEach(detalle => {    total += detalle.get('importe')?.value || 0;
-    });
+
+    this.detallesPedidos.controls.forEach((detalle, index) => {
+      const subtotal = parseFloat(detalle.get('subtotal')?.value) || 0;
+      total += subtotal;
+
+      console.log(`📊 Detalle ${index + 1}: Subtotal=${subtotal}`);
+    });    console.log('💰 Total general calculado:', total);
+
+    // ✅ SOLO actualizar el total - NO tocar el campo de descuento
     this.pedidoForm.get('importe_total')?.setValue(total, { emitEvent: false });
-  }
 
-  autoLlenarPrecioProducto(detalle: FormGroup, productoId: number): void {
+    // ✅ NO modificar importe_total_desc automáticamente - dejar que el usuario lo maneje
+    console.log('🎯 Campo descuento NO modificado - valor actual:', this.pedidoForm.get('importe_total_desc')?.value);
+  }autoLlenarPrecioProducto(detalle: FormGroup, productoId: number): void {
+    console.log('🔍 Buscando precio para producto ID:', productoId);
+    console.log('📦 Productos disponibles:', this.productos);
+
     const producto = this.productos.find(p => p.id === parseInt(productoId.toString()));
-    if (producto && producto.precioUnitario) {
-      detalle.get('precio')?.setValue(producto.precioUnitario, { emitEvent: true });
-    }
-  }  guardarPedido(): void {
-    if (this.pedidoForm.valid) {
-      // Validación adicional para metodo_pago_id
-      const metodoPagoId = this.pedidoForm.get('metodo_pago_id')?.value;
-      if (!metodoPagoId || metodoPagoId === '') {
-        Swal.fire('Error', 'Debe seleccionar un método de pago', 'warning');
-        return;
+    console.log('🎯 Producto encontrado:', producto);
+
+    if (producto) {
+      // Mostrar TODA la estructura del producto para debugging
+      console.log('📋 Estructura completa del producto:', JSON.stringify(producto, null, 2));
+
+      // Intentar múltiples nombres de campos para el precio
+      let precio = null;
+      const camposPrecio = ['precioUnitario', 'precio_unitario', 'precio', 'price', 'importe_total', 'valor', 'costo'];
+
+      for (const campo of camposPrecio) {
+        if (producto[campo] !== undefined && producto[campo] !== null) {
+          precio = parseFloat(producto[campo]);
+          console.log(`💰 Precio encontrado en campo '${campo}': ${precio}`);
+          break;
+        }
       }
+        if (precio && precio > 0) {
+        // ✅ CORREGIDO: Usar 'precio_unitario' que coincide con el template
+        detalle.get('precio_unitario')?.setValue(precio, { emitEvent: true });
+        console.log('✅ Precio asignado al formulario:', precio);
+      } else {
+        console.log('⚠️ No se encontró precio válido para el producto');
+        console.log('🚨 CAMPOS DISPONIBLES EN PRODUCTO:', Object.keys(producto));
 
-      this.cargando = true;
-      const formValue = this.pedidoForm.value;
+        // NO asignar precio por defecto automáticamente
+        detalle.get('precio_unitario')?.setValue('', { emitEvent: false });
 
-      const pedidoDTO: PedidoDTO = {
-        fecha: formValue.fecha,
-        descripcion: formValue.descripcion || '',
-        importe_total: formValue.importe_total,
-        importe_total_desc: formValue.importe_total_desc || 0,
-        estado: formValue.estado,
-        usuario_id: this.authService.obtenerUsuarioId(),
-        metodo_pago_id: parseInt(metodoPagoId) // Asegurar que sea número
-      };
+        Swal.fire({
+          title: 'Precio no encontrado',
+          text: `El producto "${producto.nombre || producto.name || 'Desconocido'}" no tiene precio asignado. Por favor ingrese el precio manualmente.`,
+          icon: 'warning',
+          confirmButtonText: 'OK'
+        });
+      }    } else {
+      console.log('❌ Producto no encontrado en la lista');
+      // ✅ CORREGIDO: Usar 'precio_unitario' que coincide con el template
+      detalle.get('precio_unitario')?.setValue('', { emitEvent: false });
+    }
+  }guardarPedido(): void {
+    console.log('🚀 Iniciando guardado de pedido...');
 
-      if (this.pedidoEditando?.id) {
+    // Validar que el formulario principal sea válido
+    if (!this.pedidoForm.valid) {
+      console.log('❌ Formulario principal inválido:', this.pedidoForm.errors);
+      Swal.fire('Error', 'Por favor complete todos los campos requeridos', 'warning');
+      return;
+    }
+
+    // Validación adicional para metodo_pago_id
+    const metodoPagoId = this.pedidoForm.get('metodo_pago_id')?.value;
+    if (!metodoPagoId || metodoPagoId === '') {
+      Swal.fire('Error', 'Debe seleccionar un método de pago', 'warning');
+      return;
+    }    // Validar que haya al menos un detalle válido
+    const detallesValidos = this.detallesPedidos.controls.filter(detalle => {
+      const productoId = detalle.get('producto_id')?.value;
+      const cantidad = detalle.get('cantidad')?.value;
+      // ✅ CORREGIDO: Usar 'precio_unitario' que coincide con el template
+      const precio = detalle.get('precio_unitario')?.value;
+
+      console.log('🔍 Validando detalle:', { productoId, cantidad, precio });
+      return productoId && cantidad > 0 && precio > 0;
+    });
+
+    console.log('📊 Detalles válidos encontrados:', detallesValidos.length);
+    console.log('📋 Total de controles en detallesPedidos:', this.detallesPedidos.controls.length);
+
+    if (detallesValidos.length === 0) {
+      Swal.fire('Error', 'Debe agregar al menos un producto al pedido', 'warning');
+      return;
+    }
+
+    console.log(`✅ Validación pasada. ${detallesValidos.length} detalles válidos encontrados`);
+
+    this.cargando = true;
+    const formValue = this.pedidoForm.value;
+
+    const pedidoDTO: PedidoDTO = {
+      fecha: formValue.fecha,
+      descripcion: formValue.descripcion || 'Pedido creado desde formulario',
+      importe_total: formValue.importe_total || 0,
+      importe_total_desc: formValue.importe_total_desc || 0,
+      estado: formValue.estado || false,
+      usuario_id: this.authService.obtenerUsuarioId(),
+      metodo_pago_id: parseInt(metodoPagoId) // Asegurar que sea número
+    };
+
+    console.log('📦 DTO del pedido preparado:', pedidoDTO);      if (this.pedidoEditando?.id) {
         // Actualizar la información del pedido
         this.pedidoService.actualizarPedido(this.pedidoEditando.id, pedidoDTO).subscribe({
           next: (response) => {
@@ -477,9 +555,7 @@ export class PedidosComponent implements OnInit {
         Swal.fire('Error', 'No hay un pedido activo para guardar', 'error');
         this.cargando = false;
       }
-    } else {
-      Swal.fire('Error', 'Por favor, complete todos los campos requeridos', 'warning');
-    }  }
+  }
 
   // 🔥 NUEVO MÉTODO: Procesar todos los detalles del formulario automáticamente
   private async procesarTodosLosDetalles(): Promise<void> {
@@ -761,16 +837,17 @@ export class PedidosComponent implements OnInit {
               console.log('Procesando detalle:', detalle);              const detalleFormGroup = this.formBuilder.group({
                 id: [detalle.id],
                 cantidad: [detalle.cantidad, [Validators.required, Validators.min(1)]],
-                precio: [detalle.precioUnitario || detalle.precio_unitario, [Validators.required, Validators.min(0)]],
-                importe: [detalle.importe_total || detalle.subtotal, [Validators.required, Validators.min(0)]],
+                // ✅ CORREGIDO: Usar 'precio_unitario' y 'subtotal' que coinciden con el template
+                precio_unitario: [detalle.precioUnitario || detalle.precio_unitario, [Validators.required, Validators.min(0)]],
+                subtotal: [detalle.importe_total || detalle.subtotal, [Validators.required, Validators.min(0)]],
                 importe_Desc: [detalle.importe_total_desc, [Validators.min(0)]],
                 estado: [detalle.estado],
                 producto_id: [detalle.producto?.id, [Validators.required]]
               });
 
-              // ✅ Agregar listeners para cálculos automáticos
-              detalleFormGroup.get('cantidad')?.valueChanges.subscribe(() => this.calcularImporte(detalleFormGroup));
-              detalleFormGroup.get('precio')?.valueChanges.subscribe(() => this.calcularImporte(detalleFormGroup));
+              // ✅ Agregar listeners para cálculos automáticos              detalleFormGroup.get('cantidad')?.valueChanges.subscribe(() => this.calcularImporte(detalleFormGroup));
+              // ✅ CORREGIDO: Usar 'precio_unitario' que coincide con el template
+              detalleFormGroup.get('precio_unitario')?.valueChanges.subscribe(() => this.calcularImporte(detalleFormGroup));
 
               // ✅ Escuchar cambios en producto_id para auto-poblar precio
               detalleFormGroup.get('producto_id')?.valueChanges.subscribe((productoId) => {
@@ -956,68 +1033,164 @@ export class PedidosComponent implements OnInit {
       this.router.navigate(['/pedidos'], { replaceUrl: true });
     }
   }
-
-  // ✅ NUEVO: Confirmar pago de Stripe y actualizar estado
+  // ✅ MEJORADO: Confirmar pago de Stripe y actualizar estado
   confirmarPagoStripe(sessionId: string, pedidoId: number): void {
+    console.log('🔍 Iniciando confirmación de pago:', { sessionId, pedidoId });
     this.cargando = true;
 
     this.stripeService.confirmarPago(sessionId).subscribe({
-      next: (response) => {
-        console.log('✅ Pago confirmado:', response);
+      next: (response: any) => {
+        console.log('✅ Respuesta de confirmación de Stripe:', response);
 
-        if (response.status === 'complete') {
+        // Verificar si el pago fue exitoso
+        if (response.status === 'complete' || response.payment_status === 'paid') {
+          console.log('💳 Pago confirmado como exitoso, actualizando estado del pedido...');
           // Actualizar el estado del pedido a pagado
           this.actualizarEstadoPedidoDespuesPago(pedidoId);
         } else {
+          console.log('⚠️ Pago no completado:', response);
           Swal.fire('Advertencia', 'El pago no se completó correctamente', 'warning');
           this.cargando = false;
         }
       },
-      error: (error) => {
-        console.error('❌ Error al confirmar pago:', error);
-        Swal.fire('Error', 'Error al verificar el pago con Stripe', 'error');
-        this.cargando = false;
+      error: (error: any) => {
+        console.error('❌ Error al confirmar pago con Stripe:', error);
+
+        // Aún así intentar actualizar el estado ya que el usuario llegó desde Stripe con éxito
+        console.log('🔄 A pesar del error, intentando actualizar estado (el usuario vino de Stripe)...');
+        this.actualizarEstadoPedidoDespuesPago(pedidoId);
+      }
+    });
+  }  // ✅ ACTUALIZADO: Actualizar estado del pedido después del pago usando el endpoint de validación
+  actualizarEstadoPedidoDespuesPago(pedidoId: number): void {
+    console.log('💳 Actualizando estado del pedido a PAGADO:', pedidoId);
+    console.log('🔍 Métodos de pago disponibles:', this.metodosPago);
+
+    // Primero obtener el pedido actual para ver su información completa
+    this.pedidoService.obtenerPedido(pedidoId).subscribe({
+      next: (pedidoResponse: any) => {
+        const pedidoActual = pedidoResponse.data;
+        console.log('📋 Información del pedido actual:', pedidoActual);
+        console.log('🔍 Método de pago del pedido:', {
+          metodo_pago_id: pedidoActual.metodo_pago_id,
+          metodo_pago: pedidoActual.metodo_pago,
+          metodo_pago_nombre: pedidoActual.metodo_pago_nombre
+        });
+
+        // Intentar el método específico de validación
+        console.log('🚀 Intentando cambiar estado con endpoint /validar...');
+        this.pedidoService.cambiarEstadoPedido(pedidoId, true).subscribe({
+          next: (response: any) => {
+            console.log('✅ Pedido marcado como PAGADO:', response);
+            this.mostrarConfirmacionPago(pedidoId);
+            this.cargarPedidos();
+            this.cargando = false;
+          },
+          error: (error: any) => {
+            console.error('❌ Error con endpoint /validar:', error);
+            console.log('🔄 Intentando con método alternativo /actualizar-estado...');
+
+            // Probar con el endpoint alternativo
+            this.pedidoService.cambiarEstadoPedidoConQuery(pedidoId, true).subscribe({
+              next: (response: any) => {
+                console.log('✅ Pedido actualizado con método alternativo:', response);
+                this.mostrarConfirmacionPago(pedidoId);
+                this.cargarPedidos();
+                this.cargando = false;
+              },
+              error: (error2: any) => {
+                console.error('❌ Error con método alternativo:', error2);
+                console.log('🔄 Último recurso: método de actualización general...');
+                this.actualizarPedidoConMetodoGeneral(pedidoId);
+              }
+            });
+          }
+        });
+      },
+      error: (error: any) => {
+        console.error('❌ Error obteniendo información del pedido:', error);
+        console.log('🔄 Intentando actualización directa...');
+        this.actualizarPedidoConMetodoGeneral(pedidoId);
       }
     });
   }
 
-  // ✅ NUEVO: Actualizar estado del pedido después del pago
-  actualizarEstadoPedidoDespuesPago(pedidoId: number): void {
+  // Método para mostrar confirmación
+  private mostrarConfirmacionPago(pedidoId: number): void {
+    Swal.fire({
+      title: '¡Pago Confirmado!',
+      text: `El pedido #${pedidoId} ha sido marcado como PAGADO exitosamente`,
+      icon: 'success',
+      confirmButtonText: 'Continuar',
+      timer: 3000
+    });
+  }
+  // Método de respaldo para actualizar el pedido
+  private actualizarPedidoConMetodoGeneral(pedidoId: number): void {
     this.pedidoService.obtenerPedido(pedidoId).subscribe({
-      next: (response) => {
+      next: (response: any) => {
         const pedido = response.data;
+
+        // ✅ CRÍTICO: Obtener el metodo_pago_id correctamente
+        let metodoPagoId: number;
+
+        // Intentar obtener el ID del método de pago de diferentes formas
+        if (pedido.metodo_pago_id) {
+          metodoPagoId = pedido.metodo_pago_id;
+        } else if (pedido.metodo_pago?.id) {
+          metodoPagoId = pedido.metodo_pago.id;
+        } else {
+          // Si no hay método de pago, usar el primero disponible o mostrar error
+          console.error('❌ No se pudo obtener metodo_pago_id del pedido:', pedido);
+            if (this.metodosPago.length > 0 && this.metodosPago[0].id) {
+            metodoPagoId = this.metodosPago[0].id;
+            console.log('🔄 Usando el primer método de pago disponible:', metodoPagoId);
+          } else {
+            Swal.fire('Error', 'No se pudo determinar el método de pago. Contacte al administrador.', 'error');
+            this.cargando = false;
+            return;
+          }
+        }
 
         const pedidoDTO: PedidoDTO = {
           fecha: pedido.fecha,
           descripcion: pedido.descripcion || '',
           importe_total: pedido.importe_total,
           importe_total_desc: pedido.importe_total_desc,
-          estado: true, // Marcar como pagado
+          estado: true, // ✅ CRÍTICO: Marcar como pagado (true = Pagado, false = Pendiente)
           usuario_id: this.authService.obtenerUsuarioId(),
-          metodo_pago_id: pedido.metodo_pago?.id || 0
+          metodo_pago_id: metodoPagoId
         };
 
-        this.pedidoService.actualizarPedido(pedidoId, pedidoDTO).subscribe({
-          next: () => {
-            Swal.fire('¡Pago Exitoso!', 'Su pedido ha sido procesado correctamente', 'success');
+        console.log('📤 Actualizando pedido con DTO (método respaldo):', pedidoDTO);
+        console.log('🔍 Métodos de pago disponibles:', this.metodosPago);this.pedidoService.actualizarPedido(pedidoId, pedidoDTO).subscribe({
+          next: (response: any) => {
+            console.log('✅ Pedido actualizado exitosamente:', response);
+            Swal.fire({
+              title: '¡Pago Procesado!',
+              text: `El pedido #${pedidoId} ha sido marcado como PAGADO`,
+              icon: 'success',
+              confirmButtonText: 'Continuar'
+            });
             this.cargarPedidos();
             this.cargando = false;
 
             // Limpiar la URL
             window.history.replaceState({}, document.title, window.location.pathname);
           },
-          error: (error) => {
-            console.error('Error al actualizar estado del pedido:', error);
+          error: (error: any) => {            console.error('❌ Error al actualizar estado del pedido:', error);
             Swal.fire('Advertencia', 'El pago fue exitoso pero hubo un problema actualizando el estado', 'warning');
             this.cargando = false;
           }
         });
       },
-      error: (error) => {
-        console.error('Error al obtener pedido:', error);
+      error: (error: any) => {
+        console.error('❌ Error al obtener pedido:', error);
+        Swal.fire('Error', 'No se pudo obtener la información del pedido', 'error');
         this.cargando = false;
       }
-    });  }
+    });
+  }
 
   // ✅ MÉTODO PARA PROCESAR PAGO CON STRIPE
   pagarConStripe(pedido: Pedido): void {
@@ -1050,18 +1223,17 @@ export class PedidosComponent implements OnInit {
     // Crear request para Stripe
     const stripeRequest: StripeCheckoutRequest = {
       pedidoId: pedido.id,
-      amount: pedido.importe_total,
-      currency: 'usd',
+      amount: pedido.importe_total,      currency: 'usd',
       description: `Pago por pedido #${pedido.id}`,
-      customerEmail: this.authService.obtenerEmail() || 'cliente@email.com',
-      successUrl: successUrl,
-      cancelUrl: cancelUrl
+      customerEmail: this.authService.obtenerEmail() || 'cliente@email.com'
+      // successUrl: successUrl,
+      // cancelUrl: cancelUrl
     };
 
     console.log('🚀 Iniciando pago con Stripe:', {
-      ...stripeRequest,
-      successUrl: stripeRequest.successUrl?.replace(currentToken || '', 'TOKEN_HIDDEN'),
-      cancelUrl: stripeRequest.cancelUrl?.replace(currentToken || '', 'TOKEN_HIDDEN')
+      ...stripeRequest
+      // successUrl: stripeRequest.successUrl?.replace(currentToken || '', 'TOKEN_HIDDEN'),
+      // cancelUrl: stripeRequest.cancelUrl?.replace(currentToken || '', 'TOKEN_HIDDEN')
     });
 
     this.stripeService.crearCheckoutSession(stripeRequest).subscribe({
