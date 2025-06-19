@@ -9,5 +9,25 @@
 </head>
 <body>
   <app-root></app-root>
+
+  <!-- ✅ SOLUCIÓN SIMPLE: Script que garantiza retorno a /pedidos desde Stripe -->
+  <script>
+    (function() {
+      // Solo ejecutar si hay parámetros de Stripe en la URL
+      if (window.location.search.includes('session_id') || window.location.search.includes('payment=')) {
+        console.log('🔄 SCRIPT: Detectado retorno de Stripe, forzando a /pedidos');
+
+        // Cambiar la URL inmediatamente
+        if (window.location.pathname !== '/pedidos') {
+          console.log('🔄 SCRIPT: Redirigiendo desde', window.location.pathname, 'a /pedidos');
+          window.location.href = '/pedidos';
+        } else {
+          // Ya estamos en /pedidos, solo limpiar parámetros
+          window.history.replaceState({}, document.title, '/pedidos');
+          console.log('✅ SCRIPT: Ya en /pedidos, URL limpiada');
+        }
+      }
+    })();
+  </script>
 </body>
 </html>

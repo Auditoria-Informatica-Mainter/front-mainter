@@ -6,6 +6,8 @@ export interface Pedido {
   importe_total_desc: number;
   estado: boolean;
   metodo_pago?: MetodoPago;
+  metodo_pago_nombre?: string; // Nombre del método de pago desde backend
+  metodoPago?: string; // Campo alternativo del método de pago
   usuario?: any;
   detalle_pedidos?: DetallePedido[];
 }
@@ -23,21 +25,27 @@ export interface PedidoDTO {
 export interface DetallePedido {
   id?: number;
   cantidad: number;
-  estado: boolean;
-  importe_total: number;
-  importe_total_desc: number;
-  precioUnitario: number;
+  estado?: boolean;
+  precio_unitario?: number;
+  precioUnitario?: number; // Alternativo para compatibilidad
+  subtotal?: number;
+  importe_total?: number; // Para compatibilidad con backend
+  importe_total_desc?: number; // Para compatibilidad con backend
   producto?: any;
   pedido?: Pedido;
 }
 
 export interface DetallePedidoDTO {
-  productoId: number;
-  pedidoId?: number;
   cantidad: number;
-  importe_Total: number;
-  importe_Total_Desc: number;
-  precioUnitario: number;
+  precio_unitario?: number;
+  precioUnitario?: number;
+  subtotal?: number;
+  importe_Total?: number;
+  importe_Total_Desc?: number;
+  pedido_id?: number;
+  pedidoId?: number;
+  producto_id?: number;
+  productoId?: number;
 }
 
 export interface MetodoPago {

@@ -14,7 +14,7 @@ export interface ApiResponse<T> {
   providedIn: 'root'
 })
 export class PedidoService {
-  private apiUrl = `${environment.apiUrl}api/pedidos`;
+  private apiUrl = environment.apiUrl + 'api/pedidos';
 
   constructor(private http: HttpClient) { }
 
@@ -60,5 +60,15 @@ export class PedidoService {
     return this.http.post<ApiResponse<Pedido>>(`${this.apiUrl}/${id}/actualizar-estado`, null, {
       params: { estado: estado.toString() }
     });
+  }
+
+  // Actualizar totales del pedido
+  actualizarTotales(id: number): Observable<ApiResponse<Pedido>> {
+    return this.http.put<ApiResponse<Pedido>>(`${this.apiUrl}/${id}/actualizar-totales`, {});
+  }
+
+  // Finalizar pedido (opcional)
+  finalizarPedido(id: number): Observable<ApiResponse<Pedido>> {
+    return this.http.put<ApiResponse<Pedido>>(`${this.apiUrl}/${id}/finalizar`, {});
   }
 }

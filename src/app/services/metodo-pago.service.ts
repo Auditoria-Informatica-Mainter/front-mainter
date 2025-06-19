@@ -14,7 +14,7 @@ export interface ApiResponse<T> {
   providedIn: 'root'
 })
 export class MetodoPagoService {
-  private apiUrl = `${environment.apiUrl}api/metodos-pago`;
+  private apiUrl = environment.apiUrl + 'api/metodos-pago';
 
   constructor(private http: HttpClient) { }
 
