@@ -16,11 +16,26 @@ export interface StripeCheckoutRequest {
   amount: number;
   currency: string;
   customerEmail: string;
+  description?: string;
+  returnUrl: string; // ← CLAVE: URL del frontend para URLs dinámicas
 }
 
 export interface StripeConfirmResponse {
+  success: boolean;
+  order_id?: number;
+  payment_amount?: number;
   status: string;
   payment_status?: string;
+  error?: string;
+}
+
+export interface StripeVerifyResponse {
+  success: boolean;
+  is_paid: boolean;
+  payment_status: string;
+  order_id?: number;
+  amount?: number;
+  error?: string;
 }
 
 @Injectable({
@@ -42,10 +57,15 @@ export class StripeService {
   crearCheckoutSession(checkoutData: StripeCheckoutRequest): Observable<StripeResponse> {
     return this.http.post<StripeResponse>(`${this.apiUrl}/create-checkout-session`, checkoutData);
   }
+  // Verificar estado de pago en Stripe
+  verificarPago(sessionId: string): Observable<StripeVerifyResponse> {
+    return this.http.get<StripeVerifyResponse>(`${this.apiUrl}/verify-payment/${sessionId}`);
+  }
 
-  // Confirmar pago de Stripe
-  confirmarPago(sessionId: string): Observable<StripeConfirmResponse> {
-    return this.http.get<StripeConfirmResponse>(`${this.apiUrl}/confirm-payment/${sessionId}`);
+  // Confirmar pago de Stripe (actualizado según documentación)
+  confirmarPago(sessionId: string, orderId?: string): Observable<StripeConfirmResponse> {
+    const body = { sessionId, orderId };
+    return this.http.post<StripeConfirmResponse>(`${this.apiUrl}/confirm-payment`, body);
   }
 
   // Obtener configuración pública de Stripe

@@ -46,52 +46,143 @@ export class PedidosComponent implements OnInit {
     private router: Router
   ) {
     this.pedidoForm = this.formBuilder.group({
-      fecha: ['', [Validators.required]],
-      descripcion: [''],
+      fecha: ['', [Validators.required]],      descripcion: [''],
       importe_total: [0, [Validators.required, Validators.min(0)]],
       importe_total_desc: [0, [Validators.min(0)]],
       estado: [true],
       metodo_pago_id: ['', [Validators.required]],
       detalle_pedidos: this.formBuilder.array([])
     });
-  }  ngOnInit(): void {
-    console.log('🚀 Iniciando componente de pedidos');
-    console.log('🔗 URL actual:', window.location.href);
-    console.log('🔍 Parámetros de URL:', window.location.search);
+  }
 
-    // ✅ USAR EL MÉTODO COMPLETO que maneja correctamente el retorno de Stripe
-    this.verificarRetornoDeStripe();
+  ngOnInit(): void {
+    console.log('🚀 Iniciando componente de pedidos');
+
+    // ✅ Verificar retorno de Stripe según documentación
+    this.verificarRetornoDePago();
 
     this.cargarDatos();
   }
 
-  // ✅ MÉTODO SIMPLE QUE FUNCIONÓ ANTES
-  verificarYManejarRetornoDeStripe(): void {
-    const urlActual = window.location.href;
-    const esRetornoDeStripe = urlActual.includes('session_id') || urlActual.includes('payment=');
+  // ✅ Manejo de retorno de Stripe según documentación
+  verificarRetornoDePago(): void {
+    // Verificar si hay parámetros de pago en la URL
+    const params = new URLSearchParams(window.location.search);
+    const paymentStatus = params.get('payment');
+    const sessionId = params.get('session_id');
+    const orderId = params.get('order_id');
 
-    if (esRetornoDeStripe) {
-      console.log('� Detectado retorno de Stripe, forzando a /pedidos');
+    if (paymentStatus && sessionId) {
+      console.log('🔍 Detectado retorno de Stripe:', { paymentStatus, sessionId, orderId });
 
-      // Limpiar la URL INMEDIATAMENTE
-      window.history.replaceState({}, document.title, '/pedidos');
-
-      // Forzar navegación si no estamos ya en /pedidos
-      if (window.location.pathname !== '/pedidos') {
-        window.location.href = '/pedidos';
+      if (paymentStatus === 'success') {
+        // ✅ Pago exitoso - confirmar automáticamente
+        this.confirmarPagoExitoso(sessionId, orderId);
+      } else if (paymentStatus === 'cancelled') {
+        // ❌ Pago cancelado
+        this.mostrarMensajeCancelacion(orderId);
       }
 
-      // Mensaje de éxito si viene de pago exitoso
-      if (urlActual.includes('payment=success')) {
-        setTimeout(() => {
-          Swal.fire('¡Pago Exitoso!', 'Su pago ha sido procesado correctamente', 'success');
-        }, 1000);
-      } else if (urlActual.includes('payment=cancelled')) {
-        setTimeout(() => {
-          Swal.fire('Pago Cancelado', 'El proceso de pago fue cancelado', 'info');
-        }, 1000);
-      }
+      // Limpiar parámetros de la URL para que no se procese de nuevo
+      const cleanUrl = window.location.pathname;
+      window.history.replaceState({}, document.title, cleanUrl);
     }
+  }
+
+  // ✅ Confirmar pago exitoso según documentación
+  async confirmarPagoExitoso(sessionId: string, orderId: string | null): Promise<void> {
+    this.cargando = true;
+
+    try {
+      console.log('🔄 Confirmando pago exitoso...');
+
+      // Paso 1: Verificar que el pago realmente fue exitoso en Stripe
+      this.stripeService.verificarPago(sessionId).subscribe({
+        next: (verifyResult) => {
+          console.log('📊 Resultado verificación:', verifyResult);
+
+          if (verifyResult.success && verifyResult.is_paid) {
+            // Paso 2: Confirmar el pago en el backend y actualizar el pedido
+            this.stripeService.confirmarPago(sessionId, orderId || verifyResult.order_id?.toString()).subscribe({
+              next: (confirmResult) => {
+                console.log('✅ Resultado confirmación:', confirmResult);
+
+                if (confirmResult.success) {
+                  // Mostrar mensaje de éxito
+                  Swal.fire({
+                    title: '🎉 ¡Pago Exitoso!',
+                    html: `
+                      <div style="font-size: 16px;">
+                        <p><strong>Su pago ha sido procesado exitosamente</strong></p>
+                        <p>Pedido #${confirmResult.order_id}</p>
+                        <p>Monto: $${confirmResult.payment_amount} USD</p>
+                        <p>Estado: <span style="color: green; font-weight: bold;">PAGADO</span></p>
+                      </div>
+                    `,
+                    icon: 'success',
+                    confirmButtonText: 'Continuar',
+                    confirmButtonColor: '#28a745'
+                  });
+
+                  // Limpiar localStorage
+                  localStorage.removeItem('pending_payment');
+
+                  // Recargar la lista de pedidos para mostrar el estado actualizado
+                  this.cargarPedidos();
+                } else {
+                  throw new Error(confirmResult.error || 'Error confirmando pago en el backend');
+                }
+              },
+              error: (error) => this.manejarErrorConfirmacion(error)
+            });
+          } else {
+            throw new Error('El pago no fue completado exitosamente en Stripe');
+          }
+        },
+        error: (error) => this.manejarErrorConfirmacion(error)
+      });
+
+    } catch (error) {
+      this.manejarErrorConfirmacion(error);
+    } finally {
+      this.cargando = false;
+    }
+  }
+
+  // ✅ Manejar errores de confirmación
+  private manejarErrorConfirmacion(error: any): void {
+    console.error('❌ Error confirmando pago:', error);
+    this.cargando = false;
+
+    let errorMessage = 'Error confirmando pago';
+    if (error.error?.message) {
+      errorMessage = error.error.message;
+    } else if (error.message) {
+      errorMessage = error.message;
+    }
+
+    Swal.fire({
+      title: 'Error confirmando pago',
+      html: `
+        <p>${errorMessage}</p>
+        <p><small>Por favor, verifica el estado de tu pedido o contacta soporte.</small></p>
+      `,
+      icon: 'error',
+      confirmButtonText: 'Entendido'
+    });
+  }
+
+  // ✅ Mostrar mensaje de cancelación
+  private mostrarMensajeCancelacion(orderId: string | null): void {
+    Swal.fire({
+      title: '❌ Pago Cancelado',
+      html: `
+        <p>El pago para el pedido #${orderId || 'N/A'} fue cancelado.</p>
+        <p>Puedes intentar pagar nuevamente cuando gustes.</p>
+      `,
+      icon: 'info',
+      confirmButtonText: 'Entendido'
+    });
   }
 
   get detallesPedidos(): FormArray {
@@ -1246,13 +1337,13 @@ export class PedidosComponent implements OnInit {
         <p><strong>Su pago ha sido procesado exitosamente</strong></p>
         <p>Pedido #${pedidoId} ahora está marcado como <span style="color: green; font-weight: bold;">PAGADO</span></p>
         <p>¡Gracias por su compra!</p>
-      </div>`,
-      icon: 'success',
+      </div>`,      icon: 'success',
       confirmButtonText: 'Continuar',
       confirmButtonColor: '#28a745',
       timer: 5000,
       timerProgressBar: true,
-      allowOutsideClick: false    });
+      allowOutsideClick: false
+    });
   }
 
   // ✅ MÉTODO PARA PROCESAR PAGO CON STRIPE
@@ -1269,61 +1360,52 @@ export class PedidosComponent implements OnInit {
 
     this.cargando = true;
 
-    // Obtener token actual y construir URLs de retorno
-    const currentToken = this.authService.obtenerToken();
-    const baseUrl = window.location.origin;
-    const currentPath = '/pedidos'; // Siempre volver a pedidos después del pago    // Construir URLs con token para preservar sesión
-    const successUrl = `${baseUrl}${currentPath}?payment=success&pedido_id=${pedido.id}&session_id={CHECKOUT_SESSION_ID}&token=${currentToken}`;
-    const cancelUrl = `${baseUrl}${currentPath}?payment=cancelled&pedido_id=${pedido.id}&token=${currentToken}`;
+    // ✅ CLAVE: Detectar automáticamente la URL actual del frontend
+    const frontendUrl = window.location.origin; // http://localhost:4200 (o el puerto que sea)
 
-    console.log('🔗 URLs de retorno configuradas para el backend:');
-    console.log('✅ Success URL:', successUrl);
-    console.log('❌ Cancel URL:', cancelUrl);
-    console.log('🚨 IMPORTANTE: El backend debe usar estas URLs al crear la sesión de Stripe');// Crear request para Stripe - IMPORTANTE: monto en centavos
+    // Obtener email del usuario
     const userEmail = this.authService.obtenerEmail();
-    console.log('📧 Email del usuario:', userEmail);
 
     // ✅ CRÍTICO: Convertir el monto a centavos (Stripe requiere centavos)
     const amountInCents = Math.round(pedido.importe_total * 100);
 
-    const stripeRequest: StripeCheckoutRequest = {
-      orderId: pedido.id,
-      amount: amountInCents, // ✅ Enviar monto en centavos
+    const paymentRequest: StripeCheckoutRequest = {
+      amount: amountInCents, // Stripe usa centavos
       currency: 'usd',
-      customerEmail: userEmail || 'cliente@email.com'
+      orderId: pedido.id,
+      customerEmail: userEmail || 'cliente@email.com',
+      description: `Pedido #${pedido.id}`,
+      returnUrl: frontendUrl // ← ESTO ES LO IMPORTANTE para URLs dinámicas
     };
 
-    console.log('🚀 Iniciando pago con Stripe:', {
-      url: `${this.stripeService.baseApiUrl}/create-checkout-session`,
-      payload: stripeRequest,
-      pedidoOriginal: {
-        id: pedido.id,
-        importe_total: pedido.importe_total,
-        importe_en_centavos: amountInCents,
-        email_usuario: userEmail
-      }
-    });
+    console.log('🔗 Frontend URL detectada:', frontendUrl);
+    console.log('💳 Creando sesión de pago para pedido:', pedido.id);
+    console.log('🚀 Request completo:', paymentRequest);
 
-    this.stripeService.crearCheckoutSession(stripeRequest).subscribe({
+    this.stripeService.crearCheckoutSession(paymentRequest).subscribe({
       next: (response: StripeResponse) => {
         console.log('✅ Sesión de Stripe creada:', response);
+
         if (response.success && response.url) {
+          console.log('✅ Sesión creada, redirigiendo a Stripe...');
+
+          // Guardar info para cuando regrese del pago
+          localStorage.setItem('pending_payment', JSON.stringify({
+            pedidoId: pedido.id,
+            amount: pedido.importe_total,
+            timestamp: Date.now()
+          }));
+
           // Redirigir a Stripe Checkout
           window.location.href = response.url;
         } else {
           this.cargando = false;
           const errorMessage = response.error || response.message || 'No se pudo crear la sesión de pago';
-          Swal.fire('Error', errorMessage, 'error');        }
+          Swal.fire('Error', errorMessage, 'error');
+        }
       },
       error: (error: any) => {
-        console.error('❌ Error al crear sesión de Stripe:', {
-          error: error,
-          status: error.status,
-          statusText: error.statusText,
-          url: error.url,
-          errorBody: error.error,
-          message: error.message
-        });
+        console.error('❌ Error al crear sesión de Stripe:', error);
         this.cargando = false;
 
         let errorMessage = 'Error al procesar el pago';
