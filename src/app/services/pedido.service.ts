@@ -49,16 +49,33 @@ export class PedidoService {
   // Obtener productos de un pedido con información completa
   obtenerProductosPedido(id: number): Observable<ApiResponse<any[]>> {
     return this.http.get<ApiResponse<any[]>>(`${this.apiUrl}/${id}/productos`);
-  }
-  // Nuevo método para cambiar solo el estado del pedido usando el endpoint del backend
+  }  // Nuevo método para cambiar solo el estado del pedido usando el endpoint del backend
   cambiarEstadoPedido(id: number, estado: boolean): Observable<ApiResponse<Pedido>> {
-    return this.http.put<ApiResponse<Pedido>>(`${this.apiUrl}/${id}/validar`, { estado: estado });
+    const url = `${this.apiUrl}/${id}/validar`;
+    const body = { estado: estado };
+
+    console.log('🔄 [PedidoService] Cambiando estado del pedido:');
+    console.log('   URL:', url);
+    console.log('   Body:', body);
+    console.log('   ID:', id);
+    console.log('   Estado:', estado);
+
+    return this.http.put<ApiResponse<Pedido>>(url, body);
   }
 
   // Método alternativo usando query parameter (si prefieres esta opción)
   cambiarEstadoPedidoConQuery(id: number, estado: boolean): Observable<ApiResponse<Pedido>> {
-    return this.http.post<ApiResponse<Pedido>>(`${this.apiUrl}/${id}/actualizar-estado`, null, {
-      params: { estado: estado.toString() }
+    const url = `${this.apiUrl}/${id}/actualizar-estado`;
+    const params = { estado: estado.toString() };
+
+    console.log('🔄 [PedidoService] Cambiando estado con query:');
+    console.log('   URL:', url);
+    console.log('   Params:', params);
+    console.log('   ID:', id);
+    console.log('   Estado:', estado);
+
+    return this.http.post<ApiResponse<Pedido>>(url, null, {
+      params: params
     });
   }
 
@@ -70,5 +87,23 @@ export class PedidoService {
   // Finalizar pedido (opcional)
   finalizarPedido(id: number): Observable<ApiResponse<Pedido>> {
     return this.http.put<ApiResponse<Pedido>>(`${this.apiUrl}/${id}/finalizar`, {});
+  }
+
+  // Método de debugging para verificar la disponibilidad de la API
+  verificarAPI(): Observable<any> {
+    console.log('🔍 [PedidoService] Verificando API...');
+    console.log('   Base URL:', this.apiUrl);
+    console.log('   Environment URL:', environment.apiUrl);
+
+    return this.http.get<any>(this.apiUrl);
+  }
+
+  // Método de debugging para verificar un pedido específico
+  verificarPedido(id: number): Observable<any> {
+    const url = `${this.apiUrl}/${id}`;
+    console.log('🔍 [PedidoService] Verificando pedido:', id);
+    console.log('   URL:', url);
+
+    return this.http.get<any>(url);
   }
 }

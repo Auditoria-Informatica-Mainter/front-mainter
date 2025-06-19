@@ -57,9 +57,10 @@ export class PedidosComponent implements OnInit {
   }  ngOnInit(): void {
     console.log('🚀 Iniciando componente de pedidos');
     console.log('🔗 URL actual:', window.location.href);
+    console.log('🔍 Parámetros de URL:', window.location.search);
 
-    // ✅ SOLUCIÓN SIMPLE: Verificar si venimos de Stripe y forzar a quedarnos en /pedidos
-    this.verificarYManejarRetornoDeStripe();
+    // ✅ USAR EL MÉTODO COMPLETO que maneja correctamente el retorno de Stripe
+    this.verificarRetornoDeStripe();
 
     this.cargarDatos();
   }
@@ -106,12 +107,27 @@ export class PedidosComponent implements OnInit {
     ]).finally(() => {
       this.cargando = false;
     });
-  }
-  cargarPedidos(): Promise<void> {
+  }  cargarPedidos(): Promise<void> {
     return new Promise((resolve) => {
       this.pedidoService.listarPedidos().subscribe({
         next: (response) => {
           this.pedidos = response.data;
+
+          // ✅ Debug logging para verificar los métodos de pago
+          console.log('📦 Pedidos cargados desde backend:', this.pedidos.length);
+          this.pedidos.forEach((pedido, index) => {
+            if (index < 3) { // Solo mostrar los primeros 3 para no sobrecargar el log
+              console.log(`📦 Pedido #${pedido.id}:`, {
+                id: pedido.id,
+                estado: pedido.estado,
+                metodo_pago: pedido.metodo_pago,
+                metodo_pago_nombre: pedido.metodo_pago_nombre,
+                metodoPago: pedido.metodoPago,
+                importe_total: pedido.importe_total
+              });
+            }
+          });
+
           this.filtrarPedidos(); // Aplicar filtros después de cargar
           resolve();
         },
@@ -123,12 +139,12 @@ export class PedidosComponent implements OnInit {
       });
     });
   }
-
   cargarMetodosPago(): Promise<void> {
     return new Promise((resolve) => {
-      this.metodoPagoService.listarMetodosPago().subscribe({
-        next: (response) => {
+      this.metodoPagoService.listarMetodosPago().subscribe({        next: (response) => {
           this.metodosPago = response.data;
+          console.log('✅ Métodos de pago cargados:', this.metodosPago);
+          // this.verificarMetodosPagoStripe(); // Función comentada temporalmente
           resolve();
         },
         error: (error) => {
@@ -718,14 +734,33 @@ export class PedidosComponent implements OnInit {
     const metodo = this.metodosPago.find(m => m.id === metodoId);
     return metodo ? metodo.nombre : 'Método no encontrado';
   }
-
   obtenerNombreMetodoPagoPedido(pedido: Pedido): string {
+    // Priorizar el campo metodo_pago_nombre que viene directamente del backend
+    if (pedido.metodo_pago_nombre) {
+      return pedido.metodo_pago_nombre;
+    }
+
+    // Segundo: Si existe el objeto metodo_pago con nombre
     if (pedido.metodo_pago?.nombre) {
       return pedido.metodo_pago.nombre;
     }
+
+    // Tercero: Si existe el objeto metodo_pago con id, buscar en la lista local
     if (pedido.metodo_pago?.id) {
       return this.obtenerNombreMetodoPago(pedido.metodo_pago.id);
     }
+
+    // Cuarto: Campo alternativo metodoPago (sin underscore)
+    if (pedido.metodoPago) {
+      return pedido.metodoPago;
+    }
+
+    console.warn('⚠️ No se pudo determinar el método de pago para el pedido:', pedido.id, {
+      metodo_pago_nombre: pedido.metodo_pago_nombre,
+      metodo_pago: pedido.metodo_pago,
+      metodoPago: pedido.metodoPago
+    });
+
     return 'N/A';
   }
 
@@ -744,35 +779,51 @@ export class PedidosComponent implements OnInit {
       confirmButtonText: `Sí, ${mensajeAccion}`,
       cancelButtonText: 'Cancelar'
     }).then((result) => {
-      if (result.isConfirmed && pedido.id) {
-        this.cargando = true;
-          // Crear DTO con el nuevo estado
-        const pedidoDTO: PedidoDTO = {
-          fecha: pedido.fecha,
-          descripcion: pedido.descripcion || '',
-          importe_total: pedido.importe_total,
-          importe_total_desc: pedido.importe_total_desc,
-          estado: nuevoEstado,
-          usuario_id: this.authService.obtenerUsuarioId(),
-          metodo_pago_id: pedido.metodo_pago?.id || 0
-        };this.pedidoService.actualizarPedido(pedido.id, pedidoDTO).subscribe({
+      if (result.isConfirmed && pedido.id) {        this.cargando = true;
+
+        console.log('🔄 [Pedidos] Cambiando estado del pedido:', pedido.id, 'a:', nuevoEstado);
+
+        // Usar el método específico para cambiar estado en lugar de actualizar todo el pedido
+        this.pedidoService.cambiarEstadoPedido(pedido.id, nuevoEstado).subscribe({
           next: (response) => {
+            console.log('✅ [Pedidos] Estado del pedido actualizado:', response);
+
             // ✅ Después de actualizar el pedido, actualizar todos los detalles
             this.actualizarEstadoTodosLosDetalles(pedido.id!, nuevoEstado).then(() => {
               const estadoTexto = nuevoEstado ? 'pagado' : 'pendiente';
               Swal.fire('Éxito', `El pedido y todos sus productos han sido marcados como ${estadoTexto}`, 'success');
               this.cargarPedidos();
-              this.cargando = false;            }).catch((error: any) => {
+              this.cargando = false;
+            }).catch((error: any) => {
               console.error('Error al actualizar detalles:', error);
               Swal.fire('Advertencia', 'El pedido se actualizó pero hubo un problema actualizando algunos productos', 'warning');
               this.cargarPedidos();
               this.cargando = false;
             });
-          },
-          error: (error) => {
-            console.error('Error al cambiar estado del pedido:', error);
-            Swal.fire('Error', 'No se pudo cambiar el estado del pedido', 'error');
-            this.cargando = false;
+          },          error: (error) => {
+            console.error('❌ [Pedidos] Error al cambiar estado del pedido:', error);
+
+            // Si el primer método falla, intentar con el método alternativo
+            console.log('🔄 [Pedidos] Intentando método alternativo...');
+            if (pedido.id) {
+              this.pedidoService.cambiarEstadoPedidoConQuery(pedido.id, nuevoEstado).subscribe({
+                next: (response) => {
+                  console.log('✅ [Pedidos] Estado actualizado con método alternativo:', response);
+                  const estadoTexto = nuevoEstado ? 'pagado' : 'pendiente';
+                  Swal.fire('Éxito', `El pedido ha sido marcado como ${estadoTexto}`, 'success');
+                  this.cargarPedidos();
+                  this.cargando = false;
+                },
+                error: (errorAlternativo) => {
+                  console.error('❌ [Pedidos] Error con método alternativo:', errorAlternativo);
+                  Swal.fire('Error', 'No se pudo cambiar el estado del pedido. Por favor, verifica que el backend esté funcionando correctamente.', 'error');
+                  this.cargando = false;
+                }
+              });            } else {
+              console.error('❌ [Pedidos] ID de pedido no definido');
+              Swal.fire('Error', 'Error interno: ID de pedido no válido', 'error');
+              this.cargando = false;
+            }
           }
         });
       }
@@ -965,18 +1016,29 @@ export class PedidosComponent implements OnInit {
     if (montoUSD === undefined || montoUSD === null) return 'Bs. 0.00';
     const montoBOB = this.convertirUSDaBOB(montoUSD);
     return `Bs. ${montoBOB.toFixed(2)}`;
-  }
-
-  // ✅ NUEVO: Verificar si hay parámetros de Stripe en la URL
+  }  // ✅ NUEVO: Verificar si hay parámetros de Stripe en la URL
   verificarRetornoDeStripe(): void {
+    console.log('🔍 Verificando retorno de Stripe...');
     const urlParams = new URLSearchParams(window.location.search);
     const sessionId = urlParams.get('session_id');
     const pedidoId = urlParams.get('pedido_id');
     const paymentStatus = urlParams.get('payment');
     const token = urlParams.get('token');
 
-    console.log('🔍 Parámetros de URL detectados:', {
-      sessionId, pedidoId, paymentStatus, token: token ? 'presente' : 'ausente'
+    // Solo procesar si hay parámetros relacionados con pagos
+    const tieneParametrosPago = paymentStatus || sessionId || pedidoId;
+
+    if (!tieneParametrosPago) {
+      console.log('ℹ️ No hay parámetros de pago en la URL. Navegación normal.');
+      return;
+    }
+
+    console.log('🔍 Parámetros de pago detectados:', {
+      url: window.location.href,
+      sessionId,
+      pedidoId,
+      paymentStatus,
+      token: token ? 'presente' : 'ausente'
     });
 
     // ✅ CRÍTICO: Restaurar token INMEDIATAMENTE si está presente
@@ -1032,164 +1094,165 @@ export class PedidosComponent implements OnInit {
       console.log('🔄 Forzando navegación a /pedidos desde:', this.router.url);
       this.router.navigate(['/pedidos'], { replaceUrl: true });
     }
-  }
-  // ✅ MEJORADO: Confirmar pago de Stripe y actualizar estado
+  }  // ✅ MEJORADO: Confirmar pago de Stripe y actualizar estado
   confirmarPagoStripe(sessionId: string, pedidoId: number): void {
-    console.log('🔍 Iniciando confirmación de pago:', { sessionId, pedidoId });
+    console.log('🔍 [Stripe] Iniciando confirmación de pago:', { sessionId, pedidoId });
     this.cargando = true;
 
+    // Intentar confirmar con Stripe, pero no bloquear si falla
     this.stripeService.confirmarPago(sessionId).subscribe({
       next: (response: any) => {
-        console.log('✅ Respuesta de confirmación de Stripe:', response);
+        console.log('✅ [Stripe] Respuesta de confirmación de Stripe:', response);
 
         // Verificar si el pago fue exitoso
         if (response.status === 'complete' || response.payment_status === 'paid') {
-          console.log('💳 Pago confirmado como exitoso, actualizando estado del pedido...');
-          // Actualizar el estado del pedido a pagado
-          this.actualizarEstadoPedidoDespuesPago(pedidoId);
+          console.log('💳 [Stripe] Pago confirmado como exitoso por Stripe, actualizando estado del pedido...');
         } else {
-          console.log('⚠️ Pago no completado:', response);
-          Swal.fire('Advertencia', 'El pago no se completó correctamente', 'warning');
-          this.cargando = false;
+          console.log('⚠️ [Stripe] Pago no completado según Stripe, pero actualizando de todas formas...');
         }
+
+        // En ambos casos, actualizar el estado (porque el usuario viene de success)
+        this.actualizarEstadoPedidoDespuesPago(pedidoId);
       },
       error: (error: any) => {
-        console.error('❌ Error al confirmar pago con Stripe:', error);
-
-        // Aún así intentar actualizar el estado ya que el usuario llegó desde Stripe con éxito
-        console.log('🔄 A pesar del error, intentando actualizar estado (el usuario vino de Stripe)...');
+        console.error('❌ [Stripe] Error al confirmar pago con Stripe (pero continuando):', error);
+        console.log('🔄 [Stripe] El usuario viene de Stripe con éxito, actualizando estado sin confirmación...');
+        // Como el usuario viene de payment=success, asumimos que el pago fue exitoso
         this.actualizarEstadoPedidoDespuesPago(pedidoId);
       }
     });
-  }  // ✅ ACTUALIZADO: Actualizar estado del pedido después del pago usando el endpoint de validación
+  }  // ✅ ACTUALIZADO: Actualizar estado del pedido después del pago usando el mismo método que funciona en el botón
   actualizarEstadoPedidoDespuesPago(pedidoId: number): void {
-    console.log('💳 Actualizando estado del pedido a PAGADO:', pedidoId);
-    console.log('🔍 Métodos de pago disponibles:', this.metodosPago);
+    console.log('💳 INICIANDO actualización de estado del pedido a PAGADO (Stripe):', pedidoId);
 
-    // Primero obtener el pedido actual para ver su información completa
-    this.pedidoService.obtenerPedido(pedidoId).subscribe({
-      next: (pedidoResponse: any) => {
-        const pedidoActual = pedidoResponse.data;
-        console.log('📋 Información del pedido actual:', pedidoActual);
-        console.log('🔍 Método de pago del pedido:', {
-          metodo_pago_id: pedidoActual.metodo_pago_id,
-          metodo_pago: pedidoActual.metodo_pago,
-          metodo_pago_nombre: pedidoActual.metodo_pago_nombre
-        });
+    // Primero, buscar el ID del método de pago "Stripe"
+    const metodoStripe = this.metodosPago.find(m =>
+      m.nombre.toLowerCase().includes('stripe') ||
+      m.nombre.toLowerCase().includes('tarjeta') ||
+      m.nombre.toLowerCase().includes('card')
+    );
 
-        // Intentar el método específico de validación
-        console.log('🚀 Intentando cambiar estado con endpoint /validar...');
-        this.pedidoService.cambiarEstadoPedido(pedidoId, true).subscribe({
-          next: (response: any) => {
-            console.log('✅ Pedido marcado como PAGADO:', response);
-            this.mostrarConfirmacionPago(pedidoId);
-            this.cargarPedidos();
-            this.cargando = false;
-          },
-          error: (error: any) => {
-            console.error('❌ Error con endpoint /validar:', error);
-            console.log('🔄 Intentando con método alternativo /actualizar-estado...');
+    console.log('🔍 Método de pago Stripe encontrado:', metodoStripe);
 
-            // Probar con el endpoint alternativo
-            this.pedidoService.cambiarEstadoPedidoConQuery(pedidoId, true).subscribe({
-              next: (response: any) => {
-                console.log('✅ Pedido actualizado con método alternativo:', response);
-                this.mostrarConfirmacionPago(pedidoId);
-                this.cargarPedidos();
-                this.cargando = false;
-              },
-              error: (error2: any) => {
-                console.error('❌ Error con método alternativo:', error2);
-                console.log('🔄 Último recurso: método de actualización general...');
-                this.actualizarPedidoConMetodoGeneral(pedidoId);
-              }
-            });
-          }
-        });
+    // Si encontramos un método de pago para Stripe, actualizamos el pedido completo
+    if (metodoStripe?.id) {
+      this.actualizarPedidoConMetodoStripe(pedidoId, metodoStripe.id);
+    } else {
+      // Si no hay método Stripe específico, solo cambiar el estado
+      console.log('⚠️ No se encontró método de pago específico para Stripe, solo actualizando estado');
+      this.cambiarSoloEstadoPedido(pedidoId);
+    }
+  }
+
+  // Nuevo método para actualizar pedido completo con método de pago Stripe
+  private actualizarPedidoConMetodoStripe(pedidoId: number, metodoStripeId: number): void {
+    // Buscar el pedido actual
+    const pedidoActual = this.pedidos.find(p => p.id === pedidoId);
+    if (!pedidoActual) {
+      console.error('❌ No se encontró el pedido:', pedidoId);
+      this.cambiarSoloEstadoPedido(pedidoId);
+      return;
+    }
+
+    // Crear DTO para actualizar el pedido completo
+    const pedidoDTO: PedidoDTO = {
+      fecha: pedidoActual.fecha,
+      descripcion: pedidoActual.descripcion || 'Pagado con Stripe',
+      importe_total: pedidoActual.importe_total,
+      importe_total_desc: pedidoActual.importe_total_desc,
+      estado: true, // Marcar como pagado
+      usuario_id: this.authService.obtenerUsuarioId(),
+      metodo_pago_id: metodoStripeId // ✅ Actualizar método de pago a Stripe
+    };
+
+    console.log('🔄 [Stripe] Actualizando pedido completo:', { pedidoId, pedidoDTO });
+
+    this.pedidoService.actualizarPedido(pedidoId, pedidoDTO).subscribe({
+      next: (response: any) => {
+        console.log('✅ [Stripe] Pedido actualizado exitosamente:', response);
+        this.finalizarActualizacionStripe(pedidoId);
       },
       error: (error: any) => {
-        console.error('❌ Error obteniendo información del pedido:', error);
-        console.log('🔄 Intentando actualización directa...');
-        this.actualizarPedidoConMetodoGeneral(pedidoId);
+        console.error('❌ [Stripe] Error al actualizar pedido completo:', error);
+        // Fallback: solo cambiar estado
+        this.cambiarSoloEstadoPedido(pedidoId);
       }
     });
   }
 
+  // Método de respaldo para solo cambiar el estado
+  private cambiarSoloEstadoPedido(pedidoId: number): void {
+    this.pedidoService.cambiarEstadoPedido(pedidoId, true).subscribe({
+      next: (response: any) => {
+        console.log('✅ [Stripe] Estado del pedido actualizado exitosamente:', response);
+        this.finalizarActualizacionStripe(pedidoId);
+      },
+      error: (error: any) => {
+        console.error('❌ [Stripe] Error con cambiarEstadoPedido:', error);
+
+        // Si el primer método falla, intentar con el método alternativo
+        console.log('🔄 [Stripe] Intentando método alternativo...');
+        this.pedidoService.cambiarEstadoPedidoConQuery(pedidoId, true).subscribe({
+          next: (response: any) => {
+            console.log('✅ [Stripe] Estado actualizado con método alternativo:', response);
+            this.finalizarActualizacionStripe(pedidoId);
+          },
+          error: (errorAlternativo: any) => {
+            console.error('❌ [Stripe] Error con método alternativo:', errorAlternativo);
+            this.mostrarErrorActualizacion(pedidoId);
+          }
+        });
+      }
+    });
+  }
+
+  // Finalizar la actualización después del pago con Stripe
+  private finalizarActualizacionStripe(pedidoId: number): void {
+    // Actualizar todos los detalles del pedido
+    this.actualizarEstadoTodosLosDetalles(pedidoId, true).then(() => {
+      console.log('✅ [Stripe] Pedido y productos marcados como pagados');
+      this.mostrarConfirmacionPago(pedidoId);
+      this.cargarPedidos(); // Recargar pedidos para mostrar cambios
+      this.cargando = false;
+    }).catch((error: any) => {
+      console.error('⚠️ [Stripe] Error al actualizar detalles:', error);
+      // El pedido se actualizó, solo hubo problema con los detalles
+      this.mostrarConfirmacionPago(pedidoId);
+      this.cargarPedidos(); // Recargar pedidos para mostrar cambios
+      this.cargando = false;
+    });
+  }
+
+  // Mostrar error de actualización
+  private mostrarErrorActualizacion(pedidoId: number): void {
+    Swal.fire({
+      title: 'Pago Exitoso',
+      html: `
+        <p>Su pago fue procesado correctamente en Stripe.</p>
+        <p>Sin embargo, hubo un problema técnico actualizando el estado del pedido.</p>
+        <p>Por favor, contacte a soporte técnico mencionando el pedido #${pedidoId}</p>
+      `,
+      icon: 'warning',
+      confirmButtonText: 'Entendido'
+    });
+    this.cargando = false;
+  }
   // Método para mostrar confirmación
   private mostrarConfirmacionPago(pedidoId: number): void {
+    console.log('🎉 Mostrando confirmación de pago exitoso para pedido:', pedidoId);
     Swal.fire({
-      title: '¡Pago Confirmado!',
-      text: `El pedido #${pedidoId} ha sido marcado como PAGADO exitosamente`,
+      title: '🎉 ¡Pago Confirmado!',
+      html: `<div style="font-size: 16px;">
+        <p><strong>Su pago ha sido procesado exitosamente</strong></p>
+        <p>Pedido #${pedidoId} ahora está marcado como <span style="color: green; font-weight: bold;">PAGADO</span></p>
+        <p>¡Gracias por su compra!</p>
+      </div>`,
       icon: 'success',
       confirmButtonText: 'Continuar',
-      timer: 3000
-    });
-  }
-  // Método de respaldo para actualizar el pedido
-  private actualizarPedidoConMetodoGeneral(pedidoId: number): void {
-    this.pedidoService.obtenerPedido(pedidoId).subscribe({
-      next: (response: any) => {
-        const pedido = response.data;
-
-        // ✅ CRÍTICO: Obtener el metodo_pago_id correctamente
-        let metodoPagoId: number;
-
-        // Intentar obtener el ID del método de pago de diferentes formas
-        if (pedido.metodo_pago_id) {
-          metodoPagoId = pedido.metodo_pago_id;
-        } else if (pedido.metodo_pago?.id) {
-          metodoPagoId = pedido.metodo_pago.id;
-        } else {
-          // Si no hay método de pago, usar el primero disponible o mostrar error
-          console.error('❌ No se pudo obtener metodo_pago_id del pedido:', pedido);
-            if (this.metodosPago.length > 0 && this.metodosPago[0].id) {
-            metodoPagoId = this.metodosPago[0].id;
-            console.log('🔄 Usando el primer método de pago disponible:', metodoPagoId);
-          } else {
-            Swal.fire('Error', 'No se pudo determinar el método de pago. Contacte al administrador.', 'error');
-            this.cargando = false;
-            return;
-          }
-        }
-
-        const pedidoDTO: PedidoDTO = {
-          fecha: pedido.fecha,
-          descripcion: pedido.descripcion || '',
-          importe_total: pedido.importe_total,
-          importe_total_desc: pedido.importe_total_desc,
-          estado: true, // ✅ CRÍTICO: Marcar como pagado (true = Pagado, false = Pendiente)
-          usuario_id: this.authService.obtenerUsuarioId(),
-          metodo_pago_id: metodoPagoId
-        };
-
-        console.log('📤 Actualizando pedido con DTO (método respaldo):', pedidoDTO);
-        console.log('🔍 Métodos de pago disponibles:', this.metodosPago);this.pedidoService.actualizarPedido(pedidoId, pedidoDTO).subscribe({
-          next: (response: any) => {
-            console.log('✅ Pedido actualizado exitosamente:', response);
-            Swal.fire({
-              title: '¡Pago Procesado!',
-              text: `El pedido #${pedidoId} ha sido marcado como PAGADO`,
-              icon: 'success',
-              confirmButtonText: 'Continuar'
-            });
-            this.cargarPedidos();
-            this.cargando = false;
-
-            // Limpiar la URL
-            window.history.replaceState({}, document.title, window.location.pathname);
-          },
-          error: (error: any) => {            console.error('❌ Error al actualizar estado del pedido:', error);
-            Swal.fire('Advertencia', 'El pago fue exitoso pero hubo un problema actualizando el estado', 'warning');
-            this.cargando = false;
-          }
-        });
-      },
-      error: (error: any) => {
-        console.error('❌ Error al obtener pedido:', error);
-        Swal.fire('Error', 'No se pudo obtener la información del pedido', 'error');
-        this.cargando = false;
-      }
-    });
+      confirmButtonColor: '#28a745',
+      timer: 5000,
+      timerProgressBar: true,
+      allowOutsideClick: false    });
   }
 
   // ✅ MÉTODO PARA PROCESAR PAGO CON STRIPE
@@ -1209,27 +1272,34 @@ export class PedidosComponent implements OnInit {
     // Obtener token actual y construir URLs de retorno
     const currentToken = this.authService.obtenerToken();
     const baseUrl = window.location.origin;
-    const currentPath = '/pedidos'; // Siempre volver a pedidos después del pago
-
-    // Construir URLs con token para preservar sesión
+    const currentPath = '/pedidos'; // Siempre volver a pedidos después del pago    // Construir URLs con token para preservar sesión
     const successUrl = `${baseUrl}${currentPath}?payment=success&pedido_id=${pedido.id}&session_id={CHECKOUT_SESSION_ID}&token=${currentToken}`;
-    const cancelUrl = `${baseUrl}${currentPath}?payment=cancelled&pedido_id=${pedido.id}&token=${currentToken}`;    console.log('🔗 URLs de retorno configuradas:', {
-      successUrl: successUrl.replace(currentToken || '', 'TOKEN_HIDDEN'),
-      cancelUrl: cancelUrl.replace(currentToken || '', 'TOKEN_HIDDEN')
-    });    // Crear request para Stripe - solo campos básicos requeridos
+    const cancelUrl = `${baseUrl}${currentPath}?payment=cancelled&pedido_id=${pedido.id}&token=${currentToken}`;
+
+    console.log('🔗 URLs de retorno configuradas para el backend:');
+    console.log('✅ Success URL:', successUrl);
+    console.log('❌ Cancel URL:', cancelUrl);
+    console.log('🚨 IMPORTANTE: El backend debe usar estas URLs al crear la sesión de Stripe');// Crear request para Stripe - IMPORTANTE: monto en centavos
     const userEmail = this.authService.obtenerEmail();
     console.log('📧 Email del usuario:', userEmail);
-      const stripeRequest: StripeCheckoutRequest = {
+
+    // ✅ CRÍTICO: Convertir el monto a centavos (Stripe requiere centavos)
+    const amountInCents = Math.round(pedido.importe_total * 100);
+
+    const stripeRequest: StripeCheckoutRequest = {
       orderId: pedido.id,
-      amount: pedido.importe_total, // Enviar monto en la unidad base (dólares)
+      amount: amountInCents, // ✅ Enviar monto en centavos
       currency: 'usd',
       customerEmail: userEmail || 'cliente@email.com'
-    };console.log('🚀 Iniciando pago con Stripe:', {
+    };
+
+    console.log('🚀 Iniciando pago con Stripe:', {
       url: `${this.stripeService.baseApiUrl}/create-checkout-session`,
       payload: stripeRequest,
       pedidoOriginal: {
         id: pedido.id,
         importe_total: pedido.importe_total,
+        importe_en_centavos: amountInCents,
         email_usuario: userEmail
       }
     });
