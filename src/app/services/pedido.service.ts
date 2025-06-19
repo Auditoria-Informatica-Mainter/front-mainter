@@ -2,7 +2,7 @@ import { Injectable } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
 import { Observable } from 'rxjs';
 import { environment } from '../enviroment';
-import { Pedido, PedidoDTO } from '../models/pedido.model';
+import { Pedido, PedidoDTO, MetodoPago } from '../models/pedido.model';
 
 export interface ApiResponse<T> {
   statusCode: number;
@@ -46,9 +46,19 @@ export class PedidoService {
   obtenerPedidosPorEstado(estado: boolean): Observable<ApiResponse<Pedido[]>> {
     return this.http.get<ApiResponse<Pedido[]>>(`${this.apiUrl}/estado/${estado}`);
   }
-
   // Obtener productos de un pedido con información completa
   obtenerProductosPedido(id: number): Observable<ApiResponse<any[]>> {
     return this.http.get<ApiResponse<any[]>>(`${this.apiUrl}/${id}/productos`);
+  }
+  // Nuevo método para cambiar solo el estado del pedido usando el endpoint del backend
+  cambiarEstadoPedido(id: number, estado: boolean): Observable<ApiResponse<Pedido>> {
+    return this.http.put<ApiResponse<Pedido>>(`${this.apiUrl}/${id}/validar`, { estado: estado });
+  }
+
+  // Método alternativo usando query parameter (si prefieres esta opción)
+  cambiarEstadoPedidoConQuery(id: number, estado: boolean): Observable<ApiResponse<Pedido>> {
+    return this.http.post<ApiResponse<Pedido>>(`${this.apiUrl}/${id}/actualizar-estado`, null, {
+      params: { estado: estado.toString() }
+    });
   }
 }

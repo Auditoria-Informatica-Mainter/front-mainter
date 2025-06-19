@@ -47,4 +47,9 @@ export class MetodoPagoService {
   buscarPorNombre(nombre: string): Observable<ApiResponse<MetodoPago>> {
     return this.http.get<ApiResponse<MetodoPago>>(`${this.apiUrl}/nombre/${nombre}`);
   }
+
+  // Verificar si un método de pago existe
+  verificarMetodoPago(id: number): Observable<ApiResponse<boolean>> {
+    return this.http.get<ApiResponse<boolean>>(`${this.apiUrl}/verificar/${id}`);
+  }
 }

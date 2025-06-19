@@ -7,6 +7,7 @@ import { DetallePedidoService } from '../../services/detalle-pedido.service';
 import { MetodoPagoService } from '../../services/metodo-pago.service';
 import { ProductoService } from '../../services/producto.service';
 import { AuthService } from '../../services/auth.service';
+import { StripeService, StripeCheckoutRequest } from '../../services/stripe.service';
 import { Pedido, PedidoDTO, DetallePedido, DetallePedidoDTO, MetodoPago } from '../../models/pedido.model';
 import Swal from 'sweetalert2';
 
@@ -28,18 +29,24 @@ export class PedidosComponent implements OnInit {
   cargando = false;
   mostrarDetalle = false;
   pedidoDetalle: Pedido | null = null;
+
   // Filtros
   filtroEstado: string = 'todos';
   terminoBusqueda: string = '';
   pedidosFiltrados: Pedido[] = [];
+    // Tipo de cambio USD a BOB (Bolivianos bolivianos)
+  tipoCambioUSDaBOB: number = 6.94; // Actualizable según el tipo de cambio actual
+
   constructor(
     private pedidoService: PedidoService,
     private detallePedidoService: DetallePedidoService,
     private metodoPagoService: MetodoPagoService,
     private productoService: ProductoService,
     private authService: AuthService,
+    private stripeService: StripeService,
     private formBuilder: FormBuilder,
-    private router: Router  ) {this.pedidoForm = this.formBuilder.group({
+    private router: Router
+  ) {this.pedidoForm = this.formBuilder.group({
       fecha: ['', [Validators.required]],
       descripcion: [''],
       importe_total: [0, [Validators.required, Validators.min(0)]],
@@ -49,9 +56,11 @@ export class PedidosComponent implements OnInit {
       detalle_pedidos: this.formBuilder.array([])
     });
   }
-
   ngOnInit(): void {
     this.cargarDatos();
+
+    // ✅ NUEVO: Verificar si hay parámetros de Stripe en la URL
+    this.verificarRetornoDeStripe();
   }
 
   get detallesPedidos(): FormArray {
@@ -133,425 +142,138 @@ export class PedidosComponent implements OnInit {
     }
 
     this.pedidosFiltrados = pedidosFiltrados;
-  }
-  abrirFormularioCrear(): void {
-    // Crear pedido inmediatamente en la base de datos
-    this.crearPedidoVacio();
-  }
-
-  crearPedidoVacio(): void {
-    this.cargando = true;
-      const pedidoDTO: PedidoDTO = {
-      fecha: new Date().toISOString().split('T')[0],
-      descripcion: 'Pedido creado automáticamente',
-      importe_total: 0,
-      importe_total_desc: 0,
-      estado: false, // Pendiente por defecto
-      usuario_id: this.authService.obtenerUsuarioId(),
-      metodo_pago_id: 1 // Valor por defecto, se puede cambiar después
-    };
-
-    this.pedidoService.crearPedido(pedidoDTO).subscribe({
-      next: (response) => {
-        console.log('Pedido vacío creado:', response);
-        if (response.data?.id) {
-          // Cargar el pedido recién creado para edición
-          this.abrirFormularioEditar(response.data);
-          this.modoEdicion = false; // Cambiar a modo creación para el formulario
-          this.cargando = false;
-        } else {
-          this.cargando = false;
-          Swal.fire('Error', 'No se pudo crear el pedido correctamente', 'error');
-        }
-      },
-      error: (error) => {
-        console.error('Error al crear pedido vacío:', error);
-        this.cargando = false;
-        Swal.fire('Error', 'No se pudo crear el pedido: ' + (error.error?.message || 'Error desconocido'), 'error');
-      }
-    });
-  }
-
-  abrirFormularioEditar(pedido: Pedido): void {
-    this.modoEdicion = true;
+  }  abrirFormularioCrear(): void {
+    this.modoEdicion = false;
     this.mostrarFormulario = true;
-    this.pedidoEditando = pedido;      this.pedidoForm.patchValue({
-      fecha: pedido.fecha.split('T')[0],
-      descripcion: pedido.descripcion || '',
-      importe_total: pedido.importe_total,
-      importe_total_desc: pedido.importe_total_desc,
-      estado: pedido.estado,
-      metodo_pago_id: pedido.metodo_pago?.id
-    });// Cargar detalles del pedido
-    this.detallesPedidos.clear();    if (pedido.detalle_pedidos && pedido.detalle_pedidos.length > 0) {
-      pedido.detalle_pedidos.forEach(detalle => {
-        const detalleFormGroup = this.formBuilder.group({
-          id: [detalle.id], // ✅ Incluir el ID del detalle
-          cantidad: [detalle.cantidad, [Validators.required, Validators.min(1)]],
-          precio: [detalle.precioUnitario, [Validators.required, Validators.min(0)]],
-          importe: [detalle.importe_total, [Validators.required, Validators.min(0)]],
-          importe_Desc: [detalle.importe_total_desc, [Validators.min(0)]],
-          estado: [detalle.estado],
-          producto_id: [detalle.producto?.id, [Validators.required]]
-        });
+    this.pedidoEditando = null;
+    this.pedidoForm.reset();
 
-        // ✅ Agregar listeners para cálculos automáticos también en detalles existentes
-        detalleFormGroup.get('cantidad')?.valueChanges.subscribe(() => this.calcularImporte(detalleFormGroup));
-        detalleFormGroup.get('precio')?.valueChanges.subscribe(() => this.calcularImporte(detalleFormGroup));
+    // Configurar fecha actual
+    const fechaActual = new Date().toISOString().split('T')[0];
+    this.pedidoForm.patchValue({
+      fecha: fechaActual,
+      estado: false,
+      importe_total: 0,
+      importe_total_desc: 0
+    });
 
-        // ✅ Escuchar cambios en producto_id para auto-poblar precio
-        detalleFormGroup.get('producto_id')?.valueChanges.subscribe((productoId) => {
-          if (productoId) {
-            this.autoLlenarPrecioProducto(detalleFormGroup, parseInt(productoId.toString()));
-          }
-        });
-
-        this.detallesPedidos.push(detalleFormGroup);
-      });
-    } else {
-      this.agregarDetalle();
-    }
+    // Limpiar detalles
+    this.detallesPedidos.clear();
   }
 
   cerrarFormulario(): void {
     this.mostrarFormulario = false;
     this.modoEdicion = false;
-    this.pedidoForm.reset();
     this.pedidoEditando = null;
+    this.pedidoForm.reset();
     this.detallesPedidos.clear();
-  }  agregarDetalle(): void {
-    const detalle = this.formBuilder.group({
-      cantidad: [1, [Validators.required, Validators.min(1)]],
-      precio: [0, [Validators.required, Validators.min(0)]],
-      importe: [0, [Validators.required, Validators.min(0)]],
-      importe_Desc: [0, [Validators.min(0)]],
-      estado: [true],
-      producto_id: ['', [Validators.required]]
-    });
-
-    // Escuchar cambios en cantidad y precio para calcular importe
-    detalle.get('cantidad')?.valueChanges.subscribe(() => this.calcularImporte(detalle));
-    detalle.get('precio')?.valueChanges.subscribe(() => this.calcularImporte(detalle));
-
-    // Escuchar cambios en producto_id para auto-poblar precio
-    detalle.get('producto_id')?.valueChanges.subscribe((productoId) => {
-      if (productoId) {
-        this.autoLlenarPrecioProducto(detalle, parseInt(productoId.toString()));
-      }
-    });
-
-    this.detallesPedidos.push(detalle);
-  }  // Método auxiliar para el template
-  agregarDetalleAlBackendFromIndex(index: number): void {
-    const detalleControl = this.detallesPedidos.at(index) as FormGroup;
-    this.agregarDetalleAlBackend(detalleControl);
-  }  // Nuevo método para agregar detalle directamente al backend
-  agregarDetalleAlBackend(detalleForm: FormGroup): void {
-    if (!this.pedidoEditando?.id) {
-      Swal.fire('Error', 'Debe tener un pedido activo para agregar detalles', 'warning');
-      return;
-    }
-
-    if (!detalleForm.valid) {
-      Swal.fire('Error', 'Por favor complete todos los campos del detalle', 'warning');
-      return;
-    }
-
-    const detalleValue = detalleForm.value;
-    console.log('🔍 Valores del formulario de detalle:', detalleValue);
-
-    // 🔍 Validar datos antes de enviar
-    if (!detalleValue.producto_id || detalleValue.producto_id <= 0) {
-      Swal.fire('Error', 'Debe seleccionar un producto válido', 'warning');
-      return;
-    }
-
-    if (!detalleValue.cantidad || detalleValue.cantidad <= 0) {
-      Swal.fire('Error', 'La cantidad debe ser mayor a 0', 'warning');
-      return;
-    }
-
-    // 🔍 Obtener precio correcto desde el formulario
-    const precio = Number(detalleValue.precio) || 0;
-    const cantidad = Number(detalleValue.cantidad) || 0;
-    const importe = cantidad * precio;
-
-    // 🔧 Asegurar que los tipos de datos sean correctos
-    const detalleDTO: DetallePedidoDTO = {
-      cantidad: cantidad,
-      importe_Total: importe,
-      importe_Total_Desc: Number(detalleValue.importe_Desc) || 0,
-      precioUnitario: precio,
-      productoId: Number(detalleValue.producto_id),
-      pedidoId: Number(this.pedidoEditando.id)
-    };
-
-    console.log('🚀 Enviando DTO de detalle al servicio:', detalleDTO);
-    console.log('📍 Pedido ID:', this.pedidoEditando.id);
-    console.log('📍 Producto ID:', detalleValue.producto_id);
-    console.log('📍 Cantidad:', cantidad);
-    console.log('📍 Precio:', precio);
-    console.log('📍 Importe calculado:', importe);
-
-    this.cargando = true;
-    this.detallePedidoService.crearDetalle(detalleDTO).subscribe({
-      next: (response) => {
-        console.log('✅ Detalle creado - Respuesta completa:', response);
-        console.log('✅ Datos del detalle creado:', response.data);
-        console.log('✅ Estado de la respuesta:', response.statusCode);
-
-        if (response.statusCode === 200 || response.statusCode === 201) {
-          Swal.fire('Éxito', 'Detalle agregado correctamente', 'success');
-          // Recargar el pedido para obtener los totales actualizados
-          this.recargarPedidoActual();
-          this.cargarPedidos(); // Actualizar la lista principal
-        } else {
-          console.warn('⚠️ Respuesta inesperada del servidor:', response);
-          Swal.fire('Advertencia', 'El detalle se procesó pero hubo una respuesta inesperada', 'warning');
-        }
-        this.cargando = false;
-      },
-      error: (error) => {
-        console.error('❌ Error al crear detalle - Detalle del error:', error);
-        console.error('❌ Status:', error.status);
-        console.error('❌ Error message:', error.error?.message || 'Sin mensaje');
-        console.error('❌ Error details:', error.error);
-
-        this.cargando = false;
-        const errorMessage = error.error?.message || error.message || 'Error desconocido';
-        Swal.fire('Error', `Error al agregar detalle: ${errorMessage}`, 'error');
-      }
-    });
   }
 
-  eliminarDetalle(index: number): void {
-    const detalleControl = this.detallesPedidos.at(index);
-    const detalleId = detalleControl.get('id')?.value;
+  // ✅ MÉTODOS PARA MANEJO DE PEDIDOS
 
-    if (detalleId && this.pedidoEditando?.id) {
-      // Si el detalle ya existe en el backend, eliminarlo de la base de datos
-      Swal.fire({
-        title: '¿Está seguro?',
-        text: 'Este detalle será eliminado permanentemente',
-        icon: 'warning',
-        showCancelButton: true,
-        confirmButtonColor: '#d33',
-        cancelButtonColor: '#3085d6',
-        confirmButtonText: 'Sí, eliminar',
-        cancelButtonText: 'Cancelar'
-      }).then((result) => {
-        if (result.isConfirmed) {
-          this.cargando = true;
-          this.detallePedidoService.eliminarDetalle(detalleId).subscribe({
-            next: (response) => {
-              Swal.fire('Eliminado', 'El detalle ha sido eliminado', 'success');
-              this.recargarPedidoActual(); // Recargar datos del backend
-              this.cargarPedidos(); // Actualizar lista principal
-              this.cargando = false;
-            },
-            error: (error) => {
-              console.error('Error al eliminar detalle:', error);
-              this.cargando = false;
-              Swal.fire('Error', 'No se pudo eliminar el detalle', 'error');
-            }
-          });
-        }
-      });
-    } else {
-      // Si es un detalle nuevo (sin ID), solo eliminarlo del formulario
-      this.detallesPedidos.removeAt(index);
-      if (this.detallesPedidos.length === 0) {
-        this.agregarDetalle(); // Asegurar que siempre haya al menos una línea
-      }
-    }
+  // Obtener nombre del método de pago
+  obtenerNombreMetodoPagoPedido(pedido: Pedido): string {
+    return pedido.metodo_pago?.nombre || 'Sin método de pago';
   }
 
-  calcularImporte(detalle: FormGroup): void {
-    const cantidad = detalle.get('cantidad')?.value || 0;
-    const precio = detalle.get('precio')?.value || 0;
-    const importe = cantidad * precio;
-    detalle.get('importe')?.setValue(importe, { emitEvent: false });
-    this.calcularTotales();
-  }
-  calcularTotales(): void {
-    let total = 0;
-    this.detallesPedidos.controls.forEach(detalle => {    total += detalle.get('importe')?.value || 0;
-    });
-    this.pedidoForm.get('importe_total')?.setValue(total, { emitEvent: false });
+  // Ver detalle del pedido
+  verDetalle(pedido: Pedido): void {
+    this.pedidoDetalle = pedido;
+    this.mostrarDetalle = true;
   }
 
-  autoLlenarPrecioProducto(detalle: FormGroup, productoId: number): void {
-    const producto = this.productos.find(p => p.id === parseInt(productoId.toString()));
-    if (producto && producto.precioUnitario) {
-      detalle.get('precio')?.setValue(producto.precioUnitario, { emitEvent: true });
-    }
-  }  guardarPedido(): void {
-    if (this.pedidoForm.valid) {
-      // Validación adicional para metodo_pago_id
-      const metodoPagoId = this.pedidoForm.get('metodo_pago_id')?.value;
-      if (!metodoPagoId || metodoPagoId === '') {
-        Swal.fire('Error', 'Debe seleccionar un método de pago', 'warning');
-        return;
-      }
+  // Cerrar detalle
+  cerrarDetalle(): void {
+    this.mostrarDetalle = false;
+    this.pedidoDetalle = null;
+  }
 
-      this.cargando = true;
-      const formValue = this.pedidoForm.value;
+  // Cambiar estado del pedido (Pagado/Pendiente)
+  cambiarEstadoPedido(pedido: Pedido): void {
+    if (!pedido.id) return;
 
-      const pedidoDTO: PedidoDTO = {
-        fecha: formValue.fecha,
-        descripcion: formValue.descripcion || '',
-        importe_total: formValue.importe_total,
-        importe_total_desc: formValue.importe_total_desc || 0,
-        estado: formValue.estado,
-        usuario_id: this.authService.obtenerUsuarioId(),
-        metodo_pago_id: parseInt(metodoPagoId) // Asegurar que sea número
-      };
+    const nuevoEstado = !pedido.estado;
+    const mensaje = nuevoEstado ? 'marcar como pagado' : 'marcar como pendiente';
 
-      if (this.pedidoEditando?.id) {
-        // Actualizar la información del pedido
-        this.pedidoService.actualizarPedido(this.pedidoEditando.id, pedidoDTO).subscribe({
+    Swal.fire({
+      title: '¿Estás seguro?',
+      text: `¿Deseas ${mensaje} este pedido?`,
+      icon: 'question',
+      showCancelButton: true,
+      confirmButtonColor: '#3085d6',
+      cancelButtonColor: '#d33',
+      confirmButtonText: 'Sí, cambiar',
+      cancelButtonText: 'Cancelar'
+    }).then((result) => {
+      if (result.isConfirmed) {
+        this.pedidoService.cambiarEstadoPedido(pedido.id!, nuevoEstado).subscribe({
           next: (response) => {
-            console.log('✅ Pedido actualizado correctamente');
-
-            // 🔥 NUEVO: Procesar todos los detalles del formulario automáticamente
-            this.procesarTodosLosDetalles().then(() => {
-              Swal.fire('Éxito', 'Pedido y todos los detalles guardados correctamente', 'success');
-              this.cargarPedidos();
-              this.cerrarFormulario();
-              this.cargando = false;
-            }).catch((error) => {
-              console.error('Error al procesar detalles:', error);
-              Swal.fire('Advertencia', 'El pedido se guardó pero hubo problemas con algunos detalles', 'warning');
-              this.cargarPedidos();
-              this.cargando = false;
-            });
+            pedido.estado = nuevoEstado;
+            Swal.fire(
+              '¡Actualizado!',
+              `El pedido ha sido ${nuevoEstado ? 'marcado como pagado' : 'marcado como pendiente'}.`,
+              'success'
+            );
           },
           error: (error) => {
-            console.error('Error al actualizar pedido:', error);
-            Swal.fire('Error', 'No se pudo actualizar el pedido', 'error');
-            this.cargando = false;
+            console.error('Error al cambiar estado:', error);
+            Swal.fire('Error', 'No se pudo actualizar el estado del pedido', 'error');
           }
         });
-      } else {
-        // Si no hay pedido editando, significa que algo salió mal
-        Swal.fire('Error', 'No hay un pedido activo para guardar', 'error');
-        this.cargando = false;
       }
-    } else {
-      Swal.fire('Error', 'Por favor, complete todos los campos requeridos', 'warning');
-    }  }
-
-  // 🔥 NUEVO MÉTODO: Procesar todos los detalles del formulario automáticamente
-  private async procesarTodosLosDetalles(): Promise<void> {
-    console.log('🔄 Iniciando procesamiento automático de todos los detalles...');
-
-    const detallesArray = this.obtenerArrayDetalles();
-    if (!detallesArray || detallesArray.length === 0) {
-      console.log('⚠️ No hay detalles para procesar');
-      return;
-    }
-
-    console.log(`📊 Procesando ${detallesArray.length} detalles automáticamente:`);
-
-    const promesas = [];
-
-    for (let i = 0; i < detallesArray.length; i++) {
-      const detalle = detallesArray.at(i);
-
-      if (detalle && detalle.value) {
-        const detalleValue = detalle.value;
-
-        // Validar que tenga datos mínimos
-        if (detalleValue.producto_id && detalleValue.cantidad > 0) {
-          console.log(`📝 Procesando detalle ${i + 1}:`, detalleValue);
-
-          const promesa = this.procesarDetalleIndividual(detalleValue, i);
-          promesas.push(promesa);
-        } else {
-          console.log(`⚠️ Detalle ${i + 1} omitido (datos incompletos):`, detalleValue);
-        }
-      }
-    }
-
-    if (promesas.length > 0) {
-      try {
-        await Promise.all(promesas);
-        console.log('✅ Todos los detalles procesados correctamente');
-      } catch (error) {
-        console.error('❌ Error al procesar algunos detalles:', error);
-        throw error;
-      }
-    } else {
-      console.log('⚠️ No se encontraron detalles válidos para procesar');
-    }
-  }
-
-  private procesarDetalleIndividual(detalleValue: any, index: number): Promise<void> {
-    return new Promise((resolve, reject) => {
-      const detalleFinal = {
-        productoId: detalleValue.producto_id,
-        pedidoId: this.pedidoEditando!.id!,
-        cantidad: detalleValue.cantidad,
-        importe_Total: detalleValue.importe || 0,
-        importe_Total_Desc: detalleValue.importe_Desc || 0,
-        precioUnitario: detalleValue.precio || 0
-      };
-
-      console.log(`🚀 Enviando detalle ${index + 1} al backend:`, detalleFinal);
-
-      this.detallePedidoService.crearDetalle(detalleFinal).subscribe({
-        next: (response) => {
-          console.log(`✅ Detalle ${index + 1} guardado exitosamente:`, response);
-          resolve();
-        },
-        error: (error: any) => {
-          console.error(`❌ Error al guardar detalle ${index + 1}:`, error);
-          reject(error);
-        }
-      });
     });
   }
 
-  // Método auxiliar para obtener el array de detalles
-  private obtenerArrayDetalles(): any[] {
-    return this.detallesPedidos.controls;
+  // Abrir formulario de edición
+  abrirFormularioEditar(pedido: Pedido): void {
+    this.modoEdicion = true;
+    this.mostrarFormulario = true;
+    this.pedidoEditando = pedido;
+
+    // Cargar datos del pedido en el formulario
+    this.pedidoForm.patchValue({
+      fecha: pedido.fecha,
+      descripcion: pedido.descripcion || '',
+      importe_total: pedido.importe_total,
+      importe_total_desc: pedido.importe_total_desc || 0,
+      estado: pedido.estado,
+      metodo_pago_id: pedido.metodo_pago?.id || ''
+    });
+
+    // Cargar detalles del pedido
+    this.cargarDetallesPedido(pedido.id!);
   }
-
-  crearDetallesPedido(pedidoId: number, detalles: DetallePedidoDTO[]): void {
-    let detallesCreados = 0;
-    const totalDetalles = detalles.length;
-
-    detalles.forEach((detalle, index) => {
-      // Agregar el ID del pedido al detalle
-      const detalleConPedido = {
-        ...detalle,
-        pedidoId: pedidoId
-      };      this.detallePedidoService.crearDetalle(detalleConPedido).subscribe({
-        next: (detalleResponse: any) => {
-          console.log(`Detalle ${index + 1} creado:`, detalleResponse);
-          detallesCreados++;
-
-          // Si se han creado todos los detalles
-          if (detallesCreados === totalDetalles) {
-            this.cargando = false;
-            Swal.fire('Éxito', 'Pedido y detalles creados correctamente', 'success');
-            this.cargarPedidos();
-            this.cerrarFormulario();
-          }
-        },
-        error: (error: any) => {
-          console.error(`Error al crear detalle ${index + 1}:`, error);
-          this.cargando = false;
-          Swal.fire('Error', `Error al crear detalle ${index + 1}: ${error.error?.message || 'Error desconocido'}`, 'error');
+  // Cargar detalles del pedido para edición
+  private cargarDetallesPedido(pedidoId: number): void {
+    this.detallePedidoService.obtenerPorPedido(pedidoId).subscribe({
+      next: (response: any) => {
+        this.detallesPedidos.clear();
+        if (response.data && Array.isArray(response.data)) {
+          response.data.forEach((detalle: any) => {
+            this.detallesPedidos.push(this.formBuilder.group({
+              id: [detalle.id],
+              producto_id: [detalle.producto?.id || '', [Validators.required]],
+              cantidad: [detalle.cantidad, [Validators.required, Validators.min(1)]],
+              precio_unitario: [detalle.precioUnitario, [Validators.required, Validators.min(0)]],
+              subtotal: [detalle.importe_total, [Validators.required, Validators.min(0)]]
+            }));
+          });
         }
-      });
+      },
+      error: (error: any) => {
+        console.error('Error al cargar detalles:', error);
+        Swal.fire('Error', 'No se pudieron cargar los detalles del pedido', 'error');
+      }
     });
   }
 
+  // Eliminar pedido
   eliminarPedido(pedido: Pedido): void {
+    if (!pedido.id) return;
+
     Swal.fire({
-      title: '¿Está seguro?',
-      text: `¿Desea eliminar el pedido #${pedido.id}?`,
+      title: '¿Estás seguro?',
+      text: 'Esta acción no se puede deshacer',
       icon: 'warning',
       showCancelButton: true,
       confirmButtonColor: '#d33',
@@ -559,273 +281,316 @@ export class PedidosComponent implements OnInit {
       confirmButtonText: 'Sí, eliminar',
       cancelButtonText: 'Cancelar'
     }).then((result) => {
-      if (result.isConfirmed && pedido.id) {
-        this.cargando = true;
-        this.pedidoService.eliminarPedido(pedido.id).subscribe({
+      if (result.isConfirmed) {
+        this.pedidoService.eliminarPedido(pedido.id!).subscribe({
           next: (response) => {
-            Swal.fire('Eliminado', 'El pedido ha sido eliminado', 'success');
             this.cargarPedidos();
-            this.cargando = false;
+            Swal.fire('¡Eliminado!', 'El pedido ha sido eliminado.', 'success');
           },
           error: (error) => {
-            console.error('Error al eliminar pedido:', error);
+            console.error('Error al eliminar:', error);
             Swal.fire('Error', 'No se pudo eliminar el pedido', 'error');
-            this.cargando = false;
           }
         });
       }
     });
   }
-  verDetalle(pedido: Pedido): void {
-    this.pedidoDetalle = pedido;
-    this.mostrarDetalle = true;
 
-    // ✅ Cargar los detalles completos desde el backend
-    this.cargarDetallesCompletos(pedido.id!);
+  // Guardar pedido (crear o actualizar)
+  guardarPedido(): void {
+    if (this.pedidoForm.valid) {
+      this.cargando = true;
+      const formData = this.pedidoForm.value;
+
+      // Calcular importe total
+      const importeTotal = this.calcularImporteTotal();
+      formData.importe_total = importeTotal;      const pedidoData: PedidoDTO = {
+        fecha: formData.fecha,
+        descripcion: formData.descripcion,
+        importe_total: formData.importe_total,
+        importe_total_desc: formData.importe_total_desc || 0,
+        estado: formData.estado,
+        metodo_pago_id: parseInt(formData.metodo_pago_id)
+      };
+
+      if (this.modoEdicion && this.pedidoEditando?.id) {
+        // Actualizar pedido existente
+        this.pedidoService.actualizarPedido(this.pedidoEditando.id, pedidoData).subscribe({
+          next: (response) => {
+            this.cargarPedidos();
+            this.cerrarFormulario();
+            this.cargando = false;
+            Swal.fire('¡Éxito!', 'Pedido actualizado correctamente', 'success');
+          },
+          error: (error) => {
+            console.error('Error al actualizar:', error);
+            this.cargando = false;
+            Swal.fire('Error', 'No se pudo actualizar el pedido', 'error');
+          }
+        });
+      } else {
+        // Crear nuevo pedido
+        this.pedidoService.crearPedido(pedidoData).subscribe({
+          next: (response) => {
+            this.cargarPedidos();
+            this.cerrarFormulario();
+            this.cargando = false;
+            Swal.fire('¡Éxito!', 'Pedido creado correctamente', 'success');
+          },
+          error: (error) => {
+            console.error('Error al crear:', error);
+            this.cargando = false;
+            Swal.fire('Error', 'No se pudo crear el pedido', 'error');
+          }
+        });
+      }
+    } else {
+      Swal.fire('Error', 'Por favor completa todos los campos requeridos', 'error');
+    }
   }
 
-  cerrarDetalle(): void {
-    this.mostrarDetalle = false;
-    this.pedidoDetalle = null;
-  }
-  obtenerNombreProducto(productoId: number | undefined): string {
-    if (!productoId) return 'Producto no especificado';
+  // Agregar detalle al formulario
+  agregarDetalle(): void {
+    const detalleGroup = this.formBuilder.group({
+      id: [null],
+      producto_id: ['', [Validators.required]],
+      cantidad: [1, [Validators.required, Validators.min(1)]],
+      precio_unitario: [0, [Validators.required, Validators.min(0)]],
+      subtotal: [0, [Validators.required, Validators.min(0)]]
+    });
 
+    // Suscribirse a cambios para calcular subtotal automáticamente
+    detalleGroup.get('cantidad')?.valueChanges.subscribe(() => this.calcularSubtotal(detalleGroup));
+    detalleGroup.get('precio_unitario')?.valueChanges.subscribe(() => this.calcularSubtotal(detalleGroup));
+
+    this.detallesPedidos.push(detalleGroup);
+  }
+
+  // Eliminar detalle del formulario
+  eliminarDetalle(index: number): void {
+    this.detallesPedidos.removeAt(index);
+    this.actualizarImporteTotal();
+  }
+  // Agregar detalle al backend desde el índice
+  agregarDetalleAlBackendFromIndex(index: number): void {
+    const detalle = this.detallesPedidos.at(index);
+    if (detalle.valid && this.pedidoEditando?.id) {
+      const detalleData: DetallePedidoDTO = {
+        pedidoId: this.pedidoEditando.id,
+        productoId: parseInt(detalle.value.producto_id),
+        cantidad: detalle.value.cantidad,
+        precioUnitario: detalle.value.precio_unitario,
+        importe_Total: detalle.value.cantidad * detalle.value.precio_unitario,
+        importe_Total_Desc: 0
+      };
+
+      this.detallePedidoService.crearDetalle(detalleData).subscribe({
+        next: (response: any) => {
+          detalle.patchValue({ id: response.data.id });
+          Swal.fire('¡Éxito!', 'Detalle agregado correctamente', 'success');
+          this.cargarPedidos(); // Recargar para actualizar totales
+        },
+        error: (error: any) => {
+          console.error('Error al agregar detalle:', error);
+          Swal.fire('Error', 'No se pudo agregar el detalle', 'error');
+        }
+      });
+    }
+  }
+
+  // Obtener nombre del producto
+  obtenerNombreProducto(productoId: number): string {
     const producto = this.productos.find(p => p.id === productoId);
-    return producto ? producto.nombre : `Producto ID: ${productoId}`;
-  }
-  obtenerNombreMetodoPago(metodoId: number | undefined): string {
-    if (!metodoId) return 'N/A';
-    const metodo = this.metodosPago.find(m => m.id === metodoId);
-    return metodo ? metodo.nombre : 'Método no encontrado';
+    return producto?.nombre || 'Producto no encontrado';
   }
 
-  obtenerNombreMetodoPagoPedido(pedido: Pedido): string {
-    if (pedido.metodo_pago?.nombre) {
-      return pedido.metodo_pago.nombre;
+  // Calcular subtotal de un detalle
+  private calcularSubtotal(detalleGroup: FormGroup): void {
+    const cantidad = detalleGroup.get('cantidad')?.value || 0;
+    const precioUnitario = detalleGroup.get('precio_unitario')?.value || 0;
+    const subtotal = cantidad * precioUnitario;
+    detalleGroup.get('subtotal')?.setValue(subtotal, { emitEvent: false });
+    this.actualizarImporteTotal();
+  }
+
+  // Actualizar importe total del pedido
+  private actualizarImporteTotal(): void {
+    const total = this.calcularImporteTotal();
+    this.pedidoForm.get('importe_total')?.setValue(total, { emitEvent: false });
+  }
+
+  // Calcular importe total
+  private calcularImporteTotal(): number {
+    return this.detallesPedidos.controls.reduce((total, detalle) => {
+      return total + (detalle.get('subtotal')?.value || 0);
+    }, 0);
+  }
+
+  // ✅ MÉTODOS PARA STRIPE
+
+  // Procesar pago con Stripe
+  pagarConStripe(pedido: Pedido): void {
+    if (!pedido.id) {
+      Swal.fire('Error', 'Pedido no válido', 'error');
+      return;
     }
-    if (pedido.metodo_pago?.id) {
-      return this.obtenerNombreMetodoPago(pedido.metodo_pago.id);
+
+    // Verificar que el pedido no esté ya pagado
+    if (pedido.estado) {
+      Swal.fire('Información', 'Este pedido ya está marcado como pagado', 'info');
+      return;
     }
-    return 'N/A';
-  }
 
-  cambiarEstadoPedido(pedido: Pedido): void {
-    const nuevoEstado = !pedido.estado;
-    const mensajeAccion = nuevoEstado ? 'marcar como pagado' : 'marcar como pendiente';
-    const mensajeConfirmacion = nuevoEstado ? 'El pedido será marcado como PAGADO' : 'El pedido será marcado como PENDIENTE';
-
-    Swal.fire({
-      title: '¿Está seguro?',
-      text: mensajeConfirmacion,
+    const total = pedido.importe_total - (pedido.importe_total_desc || 0);    Swal.fire({
+      title: 'Procesar Pago con Stripe',      html: `
+        <div class="text-left">
+          <p><strong>Pedido #${pedido.id}</strong></p>
+          <p>Total a pagar: <span class="text-blue-600 font-bold">$${total.toFixed(2)} USD</span></p>
+          <p class="text-sm text-gray-500">Equivalente a: <strong>${this.obtenerPrecioEnBolivianos(total)}</strong></p>
+          <p class="text-sm text-gray-600 mt-2">
+            • Serás redirigido a Stripe para completar el pago de forma segura<br>
+            • Después del pago regresarás automáticamente a esta página<br>
+            • El estado del pedido se actualizará automáticamente a "Pagado"
+          </p>
+        </div>
+      `,
       icon: 'question',
       showCancelButton: true,
-      confirmButtonColor: nuevoEstado ? '#10b981' : '#f59e0b',
+      confirmButtonColor: '#6366f1',
       cancelButtonColor: '#6b7280',
-      confirmButtonText: `Sí, ${mensajeAccion}`,
+      confirmButtonText: 'Proceder al Pago',
       cancelButtonText: 'Cancelar'
     }).then((result) => {
-      if (result.isConfirmed && pedido.id) {
-        this.cargando = true;
-          // Crear DTO con el nuevo estado
-        const pedidoDTO: PedidoDTO = {
-          fecha: pedido.fecha,
-          descripcion: pedido.descripcion || '',
-          importe_total: pedido.importe_total,
-          importe_total_desc: pedido.importe_total_desc,
-          estado: nuevoEstado,
-          usuario_id: this.authService.obtenerUsuarioId(),
-          metodo_pago_id: pedido.metodo_pago?.id || 0
-        };this.pedidoService.actualizarPedido(pedido.id, pedidoDTO).subscribe({
-          next: (response) => {
-            // ✅ Después de actualizar el pedido, actualizar todos los detalles
-            this.actualizarEstadoTodosLosDetalles(pedido.id!, nuevoEstado).then(() => {
-              const estadoTexto = nuevoEstado ? 'pagado' : 'pendiente';
-              Swal.fire('Éxito', `El pedido y todos sus productos han sido marcados como ${estadoTexto}`, 'success');
-              this.cargarPedidos();
-              this.cargando = false;            }).catch((error: any) => {
-              console.error('Error al actualizar detalles:', error);
-              Swal.fire('Advertencia', 'El pedido se actualizó pero hubo un problema actualizando algunos productos', 'warning');
-              this.cargarPedidos();
-              this.cargando = false;
-            });
-          },
-          error: (error) => {
-            console.error('Error al cambiar estado del pedido:', error);
-            Swal.fire('Error', 'No se pudo cambiar el estado del pedido', 'error');
-            this.cargando = false;
-          }
-        });
+      if (result.isConfirmed) {
+        this.procesarPagoStripe(pedido.id!);
       }
     });
   }
-
-  // Método para actualizar el estado de todos los detalles de un pedido
-  async actualizarEstadoTodosLosDetalles(pedidoId: number, nuevoEstado: boolean): Promise<void> {
-    try {
-      // Obtener todos los detalles del pedido
-      const responseDetalles = await this.detallePedidoService.obtenerPorPedido(pedidoId).toPromise();
-
-      if (responseDetalles?.data && responseDetalles.data.length > 0) {
-        // Actualizar el estado de cada detalle
-        const promesasActualizacion = responseDetalles.data.map(detalle => {
-          if (detalle.id) {
-            return this.detallePedidoService.actualizarDetalleEstado(detalle.id, nuevoEstado).toPromise();
-          }
-          return Promise.resolve();
-        });
-
-        // Esperar a que todas las actualizaciones terminen
-        await Promise.all(promesasActualizacion);
-        console.log(`Estados de ${responseDetalles.data.length} detalles actualizados correctamente`);
-      }
-    } catch (error) {
-      console.error('Error al actualizar estados de detalles:', error);
-      throw error;
-    }
-  }
-
-  recargarPedidoActual(): void {
-    if (this.pedidoEditando?.id) {
-      this.pedidoService.obtenerPedido(this.pedidoEditando.id).subscribe({
-        next: (response) => {
-          this.pedidoEditando = response.data;
-          // Actualizar el formulario con los nuevos totales
-          this.pedidoForm.patchValue({
-            importe_total: this.pedidoEditando.importe_total,
-            importe_total_desc: this.pedidoEditando.importe_total_desc
-          });
-          // Recargar los detalles
-          this.cargarDetallesPedido();
-        },
-        error: (error) => {
-          console.error('Error al recargar pedido:', error);
-        }
-      });
-    }
-  }  cargarDetallesPedido(): void {
-    if (this.pedidoEditando?.id) {
-      console.log('Cargando detalles del pedido ID:', this.pedidoEditando.id);
-      this.detallePedidoService.obtenerPorPedido(this.pedidoEditando.id).subscribe({
-        next: (response) => {
-          console.log('Respuesta de detalles del pedido:', response);
-          console.log('Cantidad de detalles recibidos:', response.data ? response.data.length : 0);
-
-          this.detallesPedidos.clear();
-          if (response.data && response.data.length > 0) {
-            console.log('Detalles encontrados, procesando...');
-            response.data.forEach(detalle => {
-              console.log('Procesando detalle:', detalle);
-              const detalleFormGroup = this.formBuilder.group({
-                id: [detalle.id],
-                cantidad: [detalle.cantidad, [Validators.required, Validators.min(1)]],
-                precio: [detalle.precioUnitario, [Validators.required, Validators.min(0)]],
-                importe: [detalle.importe_total, [Validators.required, Validators.min(0)]],
-                importe_Desc: [detalle.importe_total_desc, [Validators.min(0)]],
-                estado: [detalle.estado],
-                producto_id: [detalle.producto?.id, [Validators.required]]
-              });
-
-              // ✅ Agregar listeners para cálculos automáticos
-              detalleFormGroup.get('cantidad')?.valueChanges.subscribe(() => this.calcularImporte(detalleFormGroup));
-              detalleFormGroup.get('precio')?.valueChanges.subscribe(() => this.calcularImporte(detalleFormGroup));
-
-              // ✅ Escuchar cambios en producto_id para auto-poblar precio
-              detalleFormGroup.get('producto_id')?.valueChanges.subscribe((productoId) => {
-                if (productoId) {
-                  this.autoLlenarPrecioProducto(detalleFormGroup, parseInt(productoId.toString()));
-                }
-              });
-
-              this.detallesPedidos.push(detalleFormGroup);
-            });
-          }
-        },
-        error: (error) => {
-          console.error('Error al cargar detalles del pedido:', error);
-        }
-      });
-    }
-  }// Método para cargar detalles completos del pedido para el modal
-  cargarDetallesCompletos(pedidoId: number): void {
+  // Procesar el pago con Stripe
+  private procesarPagoStripe(pedidoId: number): void {
     this.cargando = true;
 
-    // ✅ Usar el nuevo endpoint que devuelve productos completos
-    this.pedidoService.obtenerProductosPedido(pedidoId).subscribe({
+    // Buscar el pedido para obtener los datos necesarios
+    const pedido = this.pedidos.find(p => p.id === pedidoId);
+    if (!pedido) {
+      this.cargando = false;
+      Swal.fire('Error', 'Pedido no encontrado', 'error');
+      return;
+    }    const total = pedido.importe_total - (pedido.importe_total_desc || 0);
+
+    // Obtener información del usuario logueado
+    const userEmail = this.authService.obtenerEmail() || 'cliente@email.com';
+    const userName = this.authService.obtenerNombre() || 'Cliente';    // Crear la estructura de datos que espera el backend
+    const checkoutData: StripeCheckoutRequest = {
+      amount: total,
+      currency: "usd",
+      orderId: `ORDER_${pedidoId}`,
+      description: pedido.descripcion || `Pago del pedido #${pedidoId}`,
+      customerEmail: userEmail,
+      customerName: userName,
+      returnUrl: `${window.location.origin}${window.location.pathname}?payment_success=true&order_id=${pedidoId}`
+    };
+
+    this.stripeService.crearSesionCheckout(checkoutData).subscribe({
       next: (response) => {
-        if (response.data && this.pedidoDetalle) {
-          // ✅ Mapear la nueva estructura de datos del backend
-          this.pedidoDetalle.detalle_pedidos = response.data.map(item => ({            id: item.detalleId,
-            cantidad: item.cantidad,
-            precioUnitario: item.precioUnitario,
-            importe_total: item.importe_total,
-            importe_total_desc: item.importe_total_desc,
-            estado: item.estado,
-            producto: {
-              id: item.productoId,
-              nombre: item.nombreProducto,
-              descripcion: item.descripcionProducto,
-              imagen: item.imagenProducto,
-              tiempoProduccion: item.tiempoProduccion,
-              stockDisponible: item.stockDisponible,
-              stockMinimo: item.stockMinimo,
-              precioUnitario: item.precioUnitario,
-              categoria: item.categoriaId ? {
-                id: item.categoriaId,
-                nombre: item.nombreCategoria
-              } : null
-            }
-          }));
-          console.log('Detalles con productos completos cargados:', this.pedidoDetalle.detalle_pedidos);
+        if (response.success && response.url) {
+          // Redirigir a Stripe Checkout
+          window.location.href = response.url;
+        } else {
+          console.error('Error en la respuesta:', response);
+          Swal.fire('Error', response.error || 'No se pudo inicializar el pago', 'error');
         }
         this.cargando = false;
       },
       error: (error) => {
-        console.error('Error al cargar detalles completos:', error);
+        console.error('Error al crear sesión de Stripe:', error);
         this.cargando = false;
 
-        // ✅ Fallback: si el nuevo endpoint falla, usar el método anterior
-        console.log('Intentando con el método anterior...');
-        this.detallePedidoService.obtenerPorPedido(pedidoId).subscribe({
-          next: (response) => {
-            if (response.data && this.pedidoDetalle) {
-              // Usar el método anterior con búsqueda manual de productos
-              this.pedidoDetalle.detalle_pedidos = response.data.map(detalle => ({
-                ...detalle,
-                producto: this.buscarProductoPorDetalle(detalle)
-              }));
-              console.log('Detalles cargados con método fallback:', this.pedidoDetalle.detalle_pedidos);
-            }
-            this.cargando = false;
-          },
-          error: (fallbackError) => {
-            console.error('Error en método fallback:', fallbackError);
-            this.cargando = false;
-            Swal.fire('Error', 'No se pudieron cargar los detalles del pedido', 'error');
-          }
-        });
+        let mensaje = 'No se pudo procesar el pago';
+        if (error.error?.error) {
+          mensaje = error.error.error;
+        } else if (error.error?.message) {
+          mensaje = error.error.message;
+        }
+
+        Swal.fire('Error', mensaje, 'error');
       }
     });
+  }  // Verificar si el usuario regresó de Stripe
+  private verificarRetornoDeStripe(): void {
+    const urlParams = new URLSearchParams(window.location.search);
+    const sessionId = urlParams.get('session_id');
+    const success = urlParams.get('success');
+    const canceled = urlParams.get('canceled');
+    const paymentSuccess = urlParams.get('payment_success');
+    const orderId = urlParams.get('order_id');
+
+    if (sessionId && success === 'true') {
+      // Pago exitoso con session_id de Stripe
+      this.procesarPagoExitoso(null);
+    } else if (paymentSuccess === 'true' && orderId) {
+      // Pago exitoso con nuestros parámetros personalizados
+      this.procesarPagoExitoso(parseInt(orderId));
+    } else if (canceled === 'true') {
+      // Pago cancelado
+      Swal.fire('Pago Cancelado', 'El pago fue cancelado por el usuario', 'info');
+      this.limpiarParametrosURL();
+    }
   }
 
-  // Método auxiliar para buscar producto en la lista local
-  private buscarProductoPorDetalle(detalle: any): any {
-    // Si el detalle tiene producto_id (como campo separado)
-    if (detalle.producto_id) {
-      return this.productos.find(p => p.id === detalle.producto_id);
-    }
+  // Procesar pago exitoso y actualizar estado del pedido
+  private procesarPagoExitoso(orderId: number | null): void {
+    if (orderId) {
+      // Actualizar el estado del pedido específico a "pagado"
+      this.pedidoService.cambiarEstadoPedido(orderId, true).subscribe({
+        next: (response) => {
+          // Buscar el pedido en la lista local y actualizarlo
+          const pedidoIndex = this.pedidos.findIndex(p => p.id === orderId);
+          if (pedidoIndex !== -1) {
+            this.pedidos[pedidoIndex].estado = true;
+            this.filtrarPedidos(); // Aplicar filtros nuevamente
+          }
 
-    // Si el detalle tiene la estructura del backend con producto.id
-    if (detalle.producto?.id) {
-      return this.productos.find(p => p.id === detalle.producto.id);
+          Swal.fire('¡Pago Exitoso!', 'El pago se ha procesado correctamente y el pedido ha sido marcado como pagado', 'success');
+          this.limpiarParametrosURL();
+        },
+        error: (error) => {
+          console.error('Error al actualizar estado del pedido:', error);
+          // Aún así mostrar éxito del pago, pero advertir sobre el estado
+          Swal.fire('Pago Exitoso', 'El pago se procesó correctamente, pero hubo un problema al actualizar el estado del pedido. Por favor, actualice manualmente.', 'warning');
+          this.cargarPedidos(); // Recargar toda la lista como respaldo
+          this.limpiarParametrosURL();
+        }
+      });
+    } else {
+      // Si no tenemos el ID del pedido, solo recargar la lista
+      Swal.fire('¡Pago Exitoso!', 'El pago se ha procesado correctamente', 'success');
+      this.cargarPedidos(); // Recargar la lista para actualizar los estados
+      this.limpiarParametrosURL();
     }
+  }
 
-    // Buscar por ID si viene como campo directo
-    const productoId = detalle.productoId || detalle.producto_id;
-    if (productoId) {
-      return this.productos.find(p => p.id === productoId);
-    }
+  // Limpiar parámetros de la URL
+  private limpiarParametrosURL(): void {
+    const url = window.location.origin + window.location.pathname;
+    window.history.replaceState({}, document.title, url);
+  }
 
-    return null;
+  // ✅ MÉTODOS PARA CONVERSIÓN DE MONEDAS
+
+  // Convertir USD a Bolivianos bolivianos
+  convertirUSDaBOB(montoUSD: number): number {
+    return montoUSD * this.tipoCambioUSDaBOB;
+  }
+
+  // Formatear precio con ambas monedas
+  formatearPrecioConBolivianos(montoUSD: number): string {
+    const montoBOB = this.convertirUSDaBOB(montoUSD);
+    return `$${montoUSD.toFixed(2)} USD (Bs. ${montoBOB.toFixed(2)})`;
+  }
+  // Obtener solo el monto en bolivianos formateado
+  obtenerPrecioEnBolivianos(montoUSD: number): string {
+    const montoBOB = this.convertirUSDaBOB(montoUSD);
+    return `Bs. ${montoBOB.toFixed(2)}`;
   }
 }

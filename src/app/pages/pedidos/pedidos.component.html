@@ -1,6 +1,16 @@
 <div class="p-4 sm:ml-60 pt-20 bg-gray-50 min-h-screen">  <div class="mb-6">
-    <h1 class="text-2xl font-bold text-gray-800 mb-2">Gestión de Pedidos</h1>
-    <p class="text-gray-600">Control y seguimiento de pedidos del sistema</p>
+    <div class="flex items-center justify-between">
+      <div>
+        <h1 class="text-2xl font-bold text-gray-800 mb-2">Gestión de Pedidos</h1>
+        <p class="text-gray-600">Control y seguimiento de pedidos del sistema</p>
+      </div>
+      <!-- Indicador de tipo de cambio -->
+      <div class="bg-blue-50 border border-blue-200 rounded-lg p-3 text-center">
+        <div class="text-xs text-blue-600 font-medium">Tipo de Cambio</div>
+        <div class="text-lg font-bold text-blue-800">1 USD = {{ tipoCambioUSDaBOB }} BOB</div>
+        <div class="text-xs text-blue-500">Bolivianos bolivianos</div>
+      </div>
+    </div>
   </div>
 
   <!-- Panel de filtros y acciones -->
@@ -69,9 +79,10 @@
           <tr *ngFor="let pedido of pedidosFiltrados" class="border-b hover:bg-gray-50">
             <td class="px-6 py-4 font-medium text-gray-900">#{{ pedido.id }}</td>
             <td class="px-6 py-4">{{ pedido.fecha | date:'dd/MM/yyyy' }}</td>            <td class="px-6 py-4">
-              <div class="font-medium">${{ pedido.importe_total | number:'1.2-2' }}</div>
+              <div class="font-medium">${{ pedido.importe_total | number:'1.2-2' }} USD</div>
+              <div class="text-sm text-gray-500">{{ obtenerPrecioEnBolivianos(pedido.importe_total) }}</div>
               <div *ngIf="pedido.importe_total_desc > 0" class="text-xs text-green-600">
-                Desc: ${{ pedido.importe_total_desc | number:'1.2-2' }}
+                Desc: ${{ pedido.importe_total_desc | number:'1.2-2' }} USD ({{ obtenerPrecioEnBolivianos(pedido.importe_total_desc) }})
               </div>
             </td>
             <td class="px-6 py-4">{{ obtenerNombreMetodoPagoPedido(pedido) }}</td>            <td class="px-6 py-4 text-center">
@@ -89,7 +100,23 @@
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
                   </svg>
+                </button>                <!-- ✅ NUEVO: Botón de Pago con Stripe -->
+                <button
+                  *ngIf="!pedido.estado"
+                  (click)="pagarConStripe(pedido)"
+                  [disabled]="cargando"
+                  class="text-indigo-600 hover:text-indigo-900 disabled:opacity-50 disabled:cursor-not-allowed"
+                  title="Pagar con Stripe">
+                  <svg *ngIf="!cargando" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z" />
+                  </svg>
+                  <!-- Spinner de carga -->
+                  <svg *ngIf="cargando" class="animate-spin h-5 w-5" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                    <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                    <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                  </svg>
                 </button>
+
                 <button
                   (click)="cambiarEstadoPedido(pedido)"
                   [class]="pedido.estado ? 'text-orange-600 hover:text-orange-900' : 'text-green-600 hover:text-green-900'"
@@ -286,9 +313,11 @@
         </div>
       </div>      <!-- Total -->
       <div class="bg-gray-100 p-4 rounded-lg mb-6">
-        <div class="text-right">
-          <div class="text-lg font-semibold">
-            Total: ${{ pedidoForm.get('importe_total')?.value | number:'1.2-2' }}
+        <div class="text-right">          <div class="text-lg font-semibold">
+            Total: ${{ pedidoForm.get('importe_total')?.value | number:'1.2-2' }} USD
+          </div>
+          <div class="text-sm text-gray-600">
+            {{ obtenerPrecioEnBolivianos(pedidoForm.get('importe_total')?.value || 0) }}
           </div>
           <div *ngIf="modoEdicion" class="text-sm text-gray-600 mt-1">
             ✅ Los totales se calculan automáticamente desde el backend
@@ -341,9 +370,9 @@
         </div>
         <div *ngIf="pedidoDetalle.descripcion">
           <span class="font-medium">Descripción:</span> {{ pedidoDetalle.descripcion }}
-        </div>
-        <div>
-          <span class="font-medium">Total:</span> ${{ pedidoDetalle.importe_total | number:'1.2-2' }}
+        </div>        <div>
+          <span class="font-medium">Total:</span> ${{ pedidoDetalle.importe_total | number:'1.2-2' }} USD
+          <div class="text-sm text-gray-600 ml-2">{{ obtenerPrecioEnBolivianos(pedidoDetalle.importe_total) }}</div>
         </div>
       </div>
 
@@ -364,8 +393,14 @@
             <tbody>
               <tr *ngFor="let detalle of pedidoDetalle.detalle_pedidos" class="border-t">
                 <td class="px-4 py-2">{{ obtenerNombreProducto(detalle.producto?.id) }}</td>
-                <td class="px-4 py-2 text-center">{{ detalle.cantidad }}</td>                <td class="px-4 py-2 text-right">${{ detalle.precioUnitario | number:'1.2-2' }}</td>
-                <td class="px-4 py-2 text-right">${{ detalle.importe_total | number:'1.2-2' }}</td>                <td class="px-4 py-2 text-center">
+                <td class="px-4 py-2 text-center">{{ detalle.cantidad }}</td>                <td class="px-4 py-2 text-right">
+                  <div>${{ detalle.precioUnitario | number:'1.2-2' }} USD</div>
+                  <div class="text-xs text-gray-500">{{ obtenerPrecioEnBolivianos(detalle.precioUnitario) }}</div>
+                </td>
+                <td class="px-4 py-2 text-right">
+                  <div>${{ detalle.importe_total | number:'1.2-2' }} USD</div>
+                  <div class="text-xs text-gray-500">{{ obtenerPrecioEnBolivianos(detalle.importe_total) }}</div>
+                </td><td class="px-4 py-2 text-center">
                   <span [class]="detalle.estado ? 'text-green-600' : 'text-yellow-600'">
                     {{ detalle.estado ? 'Activo' : 'Inactivo' }}
                   </span>
