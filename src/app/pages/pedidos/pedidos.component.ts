@@ -1467,22 +1467,19 @@ export class PedidosComponent implements OnInit {
     const frontendUrl = window.location.origin; // http://localhost:4200 (o el puerto que sea)
 
     // Obtener email del usuario
-    const userEmail = this.authService.obtenerEmail();
-
-    // ✅ CRÍTICO: Convertir el monto a centavos (Stripe requiere centavos)
-    const amountInCents = Math.round(pedido.importe_total * 100);
+    const userEmail = this.authService.obtenerEmail();    // ✅ ENVIAR MONTO TAL COMO ESTÁ - El backend manejará la conversión a centavos
+    const amount = pedido.importe_total;
 
     const paymentRequest: StripeCheckoutRequest = {
-      amount: amountInCents, // Stripe usa centavos
+      amount: amount, // El backend convertirá a centavos para Stripe
       currency: 'usd',
       orderId: pedido.id,
       customerEmail: userEmail || 'cliente@email.com',
       description: `Pedido #${pedido.id}`,
       returnUrl: frontendUrl // ← ESTO ES LO IMPORTANTE para URLs dinámicas
-    };
-
-    console.log('🔗 Frontend URL detectada:', frontendUrl);
+    };    console.log('🔗 Frontend URL detectada:', frontendUrl);
     console.log('💳 Creando sesión de pago para pedido:', pedido.id);
+    console.log('💰 Monto enviado al backend:', amount, '(el backend convertirá a centavos)');
     console.log('🚀 Request completo:', paymentRequest);
 
     this.stripeService.crearCheckoutSession(paymentRequest).subscribe({
