@@ -1213,27 +1213,25 @@ export class PedidosComponent implements OnInit {
 
     // Construir URLs con token para preservar sesión
     const successUrl = `${baseUrl}${currentPath}?payment=success&pedido_id=${pedido.id}&session_id={CHECKOUT_SESSION_ID}&token=${currentToken}`;
-    const cancelUrl = `${baseUrl}${currentPath}?payment=cancelled&pedido_id=${pedido.id}&token=${currentToken}`;
-
-    console.log('🔗 URLs de retorno configuradas:', {
+    const cancelUrl = `${baseUrl}${currentPath}?payment=cancelled&pedido_id=${pedido.id}&token=${currentToken}`;    console.log('🔗 URLs de retorno configuradas:', {
       successUrl: successUrl.replace(currentToken || '', 'TOKEN_HIDDEN'),
       cancelUrl: cancelUrl.replace(currentToken || '', 'TOKEN_HIDDEN')
-    });
-
-    // Crear request para Stripe
-    const stripeRequest: StripeCheckoutRequest = {
-      pedidoId: pedido.id,
-      amount: pedido.importe_total,      currency: 'usd',
-      description: `Pago por pedido #${pedido.id}`,
-      customerEmail: this.authService.obtenerEmail() || 'cliente@email.com'
-      // successUrl: successUrl,
-      // cancelUrl: cancelUrl
-    };
-
-    console.log('🚀 Iniciando pago con Stripe:', {
-      ...stripeRequest
-      // successUrl: stripeRequest.successUrl?.replace(currentToken || '', 'TOKEN_HIDDEN'),
-      // cancelUrl: stripeRequest.cancelUrl?.replace(currentToken || '', 'TOKEN_HIDDEN')
+    });    // Crear request para Stripe - solo campos básicos requeridos
+    const userEmail = this.authService.obtenerEmail();
+    console.log('📧 Email del usuario:', userEmail);
+      const stripeRequest: StripeCheckoutRequest = {
+      orderId: pedido.id,
+      amount: pedido.importe_total, // Enviar monto en la unidad base (dólares)
+      currency: 'usd',
+      customerEmail: userEmail || 'cliente@email.com'
+    };console.log('🚀 Iniciando pago con Stripe:', {
+      url: `${this.stripeService.baseApiUrl}/create-checkout-session`,
+      payload: stripeRequest,
+      pedidoOriginal: {
+        id: pedido.id,
+        importe_total: pedido.importe_total,
+        email_usuario: userEmail
+      }
     });
 
     this.stripeService.crearCheckoutSession(stripeRequest).subscribe({
@@ -1245,14 +1243,29 @@ export class PedidosComponent implements OnInit {
         } else {
           this.cargando = false;
           const errorMessage = response.error || response.message || 'No se pudo crear la sesión de pago';
-          Swal.fire('Error', errorMessage, 'error');
-        }
+          Swal.fire('Error', errorMessage, 'error');        }
       },
       error: (error: any) => {
-        console.error('❌ Error al crear sesión de Stripe:', error);
+        console.error('❌ Error al crear sesión de Stripe:', {
+          error: error,
+          status: error.status,
+          statusText: error.statusText,
+          url: error.url,
+          errorBody: error.error,
+          message: error.message
+        });
         this.cargando = false;
-        const errorMessage = error.error?.message || error.message || 'Error al procesar el pago';
-        Swal.fire('Error', errorMessage, 'error');
+
+        let errorMessage = 'Error al procesar el pago';
+        if (error.error?.message) {
+          errorMessage = error.error.message;
+        } else if (error.message) {
+          errorMessage = error.message;
+        } else if (error.status === 400) {
+          errorMessage = 'Datos de pago inválidos. Verifique el pedido y vuelva a intentar.';
+        }
+
+        Swal.fire('Error de Pago', errorMessage, 'error');
       }
     });
   }

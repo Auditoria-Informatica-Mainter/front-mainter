@@ -12,10 +12,9 @@ export interface StripeResponse {
 }
 
 export interface StripeCheckoutRequest {
-  pedidoId: number;
+  orderId: number;
   amount: number;
   currency: string;
-  description: string;
   customerEmail: string;
 }
 
@@ -28,9 +27,16 @@ export interface StripeConfirmResponse {
   providedIn: 'root'
 })
 export class StripeService {
-  private apiUrl = `${environment.apiUrl}/api/stripe`;
+  private apiUrl: string;
+  constructor(private http: HttpClient) {
+    // Asegurar que no haya doble barra en la URL
+    const baseUrl = environment.apiUrl.endsWith('/') ? environment.apiUrl.slice(0, -1) : environment.apiUrl;
+    this.apiUrl = `${baseUrl}/api/stripe`;
+  }
 
-  constructor(private http: HttpClient) {}
+  get baseApiUrl(): string {
+    return this.apiUrl;
+  }
 
   // Crear sesión de checkout de Stripe
   crearCheckoutSession(checkoutData: StripeCheckoutRequest): Observable<StripeResponse> {
