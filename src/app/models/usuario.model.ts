@@ -1,16 +1,16 @@
 export interface Usuario {
+  id: number;
+  nombre_completo: string;
+  email: string;
+  telefono: string;
+  direccion: string;
+  estado: boolean;
+  rol: {
     id: number;
-    nombre_completo: string;
-    email: string;
-    telefono: string;
-    direccion: string;
-    estado: boolean;
-    rol: {
-      id: number;
-      nombre: string;
-    };
-  }
-  
+    nombre: string;
+  };
+}
+
 export interface UsuarioDTO {
   nombre: string;
   apellido: string;
@@ -21,4 +21,3 @@ export interface UsuarioDTO {
   rolid: number;
 }
 
-  

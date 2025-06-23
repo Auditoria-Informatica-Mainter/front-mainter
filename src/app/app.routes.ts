@@ -23,7 +23,7 @@ import { AsignacionesMaquinariaComponent } from './pages/asignaciones-maquinaria
 import { PedidosComponent } from './pages/pedidos/pedidos.component';
 import { MetodosPagoComponent } from './pages/metodos-pago/metodos-pago.component';
 import { OrdenProductoComponent } from './pages/orden-producto/orden-producto.component';
-
+import { DevolucionesComponent } from './pages/devoluciones/devoluciones.component';
 
 export const routes: Routes = [
   { path: 'login', component: LoginComponent },
@@ -49,6 +49,7 @@ export const routes: Routes = [
   { path: 'mrp', component: LandingPageComponent },
   { path: 'bitacoras', component: BitacoraComponent },
   { path: 'ordenes', component: OrdenProductoComponent },
+  { path: 'devoluciones', component: DevolucionesComponent },
   // { path: '', redirectTo: 'login', pathMatch: 'full' },  //anterior pagina de inicio por defecto
   { path: '', redirectTo: 'mrp', pathMatch: 'full' },
   { path: '**', redirectTo: '/mrp' },
