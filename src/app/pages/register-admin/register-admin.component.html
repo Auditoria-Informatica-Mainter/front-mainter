@@ -2,22 +2,22 @@
     <div class="max-w-md w-full space-y-8">
       <!-- Logo y título -->
       <div class="text-center">
-        <svg class="mx-auto h-16 w-16 text-blue-600" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-          <path d="M3 6C3 4.34315 4.34315 3 6 3H18C19.6569 3 21 4.34315 21 6V18C21 19.6569 19.6569 21 18 21H6C4.34315 21 3 19.6569 3 18V6Z" stroke="currentColor" stroke-width="2"/>
-          <path d="M3 9H21" stroke="currentColor" stroke-width="2"/>
-          <path d="M9 9V21" stroke="currentColor" stroke-width="2"/>
-        </svg>
-        <h2 class="mt-4 text-3xl font-bold text-gray-900">Sistema MRP</h2>
+        <img
+          src="./imagen/logo-mainter-v23c.png"
+          alt="MAINTER Logo"
+          class="mx-auto h-16 w-auto mb-4"
+        />
+        <h2 class="mt-4 text-3xl font-bold text-gray-900">Sistema MAINTER</h2>
         <p class="mt-2 text-sm text-gray-600">Gestión de Recursos y Planificación</p>
       </div>
-  
+
       <!-- Tarjeta de registro -->
       <div class="mt-8 bg-white py-8 px-6 shadow-xl rounded-xl backdrop-blur-sm bg-opacity-80 border border-gray-100">
         <div class="mb-6">
           <h3 class="text-xl font-medium text-gray-900 text-center">Crear cuenta</h3>
           <p class="text-sm text-center text-gray-500 mt-1">Completa tus datos para registrarte</p>
         </div>
-  
+
         <form (ngSubmit)="onSubmit()" class="space-y-5">
           <!-- Campo de nombre -->
           <div>
@@ -41,7 +41,7 @@
               />
             </div>
           </div>
-  
+
           <!-- Campo de apellido -->
           <div>
             <label for="apellido" class="block text-sm font-medium text-gray-700">
@@ -64,7 +64,7 @@
               />
             </div>
           </div>
-  
+
           <!-- Campo de teléfono -->
           <div>
             <label for="telefono" class="block text-sm font-medium text-gray-700">
@@ -87,7 +87,7 @@
               />
             </div>
           </div>
-  
+
           <!-- Campo de email registro -->
           <div>
             <label for="email" class="block text-sm font-medium text-gray-700">
@@ -111,7 +111,7 @@
               />
             </div>
           </div>
-  
+
           <!-- Campo de contraseña registro -->
           <div>
             <label for="password" class="block text-sm font-medium text-gray-700">
@@ -134,7 +134,7 @@
               />
             </div>
           </div>
-  
+
           <!-- Campo de confirmar contraseña -->
           <div>
             <label for="confirmPassword" class="block text-sm font-medium text-gray-700">
@@ -157,7 +157,7 @@
               />
             </div>
           </div>
-  
+
           <!-- Botón de registro -->
           <div class="mt-6">
             <button type="submit" class="group relative w-full flex justify-center py-3 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-colors duration-200">
@@ -171,21 +171,21 @@
             </button>
           </div>
         </form>
-  
+
         <!-- Enlace para volver al login -->
         <div class="text-center mt-6">
           <p class="text-sm text-gray-600">
-            ¿Ya tienes cuenta? 
+            ¿Ya tienes cuenta?
             <a [routerLink]="['/login']" class="font-medium text-blue-600 hover:text-blue-500">
               Iniciar sesión
             </a>
           </p>
         </div>
       </div>
-  
+
       <!-- Footer -->
       <div class="text-center text-xs text-gray-500">
-        <p>© 2025 Sistema MRP. Todos los derechos reservados.</p>
+        <p>© 2025 Sistema MAINTER. Todos los derechos reservados.</p>
       </div>
     </div>
   </div>
